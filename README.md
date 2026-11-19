@@ -11,6 +11,7 @@ A FIBA arena, a coaching avatar and phase-by-phase biomechanics for the
 ![WebGL2](https://img.shields.io/badge/WebGL2-WebGPU%20opt--in-blue)
 ![No build step](https://img.shields.io/badge/build-none-brightgreen)
 ![PWA](https://img.shields.io/badge/PWA-offline%20ready-5a0fc8)
+![Tests](https://img.shields.io/badge/tests-node%3Atest-339933)
 
 </div>
 
@@ -28,6 +29,7 @@ A FIBA arena, a coaching avatar and phase-by-phase biomechanics for the
 - [Deploy to GitHub Pages](#deploy-to-github-pages)
 - [How it is built](#how-it-is-built)
 - [Editing coaching content](#editing-coaching-content)
+- [Testing](#testing)
 - [Browser support](#browser-support)
 - [Third-party software](#third-party-software)
 
@@ -64,7 +66,7 @@ The first load needs internet access because Babylon.js is loaded from the jsDel
 (see [Third-party software](#third-party-software)). After that the service worker keeps a cached copy for offline use.
 
 Add `#webgpu` to the URL (or use *Settings → Try WebGPU*) to try the WebGPU renderer;
-it falls back to WebGL2 automatically. Press **?** in the app for the in-app shortcut list.
+it falls back to WebGL2 automatically. Press **?** in the app for the in-app shortcut list. Run the tests with `npm test` (see [Testing](#testing)).
 
 ## Controls
 
@@ -146,6 +148,8 @@ index.html          page, HUD styles and layout (desktop / phone portrait / phon
 manifest.json, sw.js, icons/   home-screen install and offline support
 run.bat             Windows helper: local server on port 8010 + opens the browser
 THIRD_PARTY_LICENSES.md        licenses and notices for third-party software
+tests/              automated tests (Node's built-in runner, no dependencies): see "Testing"
+.github/workflows/  CI: runs the tests on every push and pull request
 src/main.js         app: game loop, HUD, input, playback, camera framing
 src/render.js       Babylon.js: engine, lights + shadows, arena, reflective floor, ball, net, overlays
 src/court.js        painted maple court surface + every FIBA line as vector geometry
@@ -256,6 +260,39 @@ Each skill has `phases`, and each phase has:
 Left-handed players get the same text with left and right swapped automatically (`mirrorText`).
 
 Re-exporting `skills.json` from the Python tool overwrites the web-only changes listed above, so edit the JSON directly instead.
+
+## Testing
+
+The coaching maths is headless, so the tests run in plain Node with **no browser, no install and no dependencies**
+(Node 20 or newer, using the built-in `node:test` runner):
+
+```bash
+npm test          # or: node --test
+```
+
+The suite takes roughly 10-30 s depending on how many CPU cores are available (test files run in parallel).
+GitHub Actions runs it on every push and pull request (`.github/workflows/test.yml`).
+
+| Test file | What it protects |
+|---|---|
+| `skills-content.test.js` | `assets/skills.json`: every phase has `why`, cues (short enough for one line), `"problem → fix"` faults, a `"Name: how"` drill; checkpoints use real metrics with `lo ≤ hi`; camera presets and highlighted joints exist; no mistyped pose channels |
+| `shots.test.js` | Every skill scores, for both hands. Free throw and three enter at 38-52° and swish without touching the rim. A sweep over player height, rim height and ball size must still score |
+| `checkpoints.test.js` | Every coaching checkpoint is in range at the end of its phase, for both hands; release angle and elbow match the figures in this README |
+| `mirroring.test.js` | A left-handed player is an exact mirror of a right-handed one (to 1 mm), and `mirrorText` swaps left and right correctly |
+| `body.test.js` | Over a whole playback: limbs keep their length (IK integrity), feet stay above the floor, nothing is NaN, the ball never teleports; where the player stands; the layup run-in speed profile |
+| `timeline.test.js` | Keyframe timeline passes through every key and never overshoots; mirroring poses is reversible |
+| `net.test.js`, `geometry.test.js`, `math.test.js`, `config.test.js` | The net simulation, mesh generators, vector/matrix maths and FIBA dimensions |
+
+**Known issue, tracked as `TODO`.** The off-hand ("guide") arm is solved by IK and is not an exact mirror image
+between left- and right-handed players in about 5% of frames (up to roughly 3 cm on the free throw and 10 cm on the layup).
+`mirroring.test.js` keeps a loose bound so it cannot get worse, and a strict test marked `todo` that reports as TODO until
+this is fixed. When it passes, remove the `todo` option.
+
+**Not covered.** Rendering (Babylon.js meshes, materials, the HUD, touch input and cameras) is not tested automatically;
+check those by eye (see *Verifying changes* in `CLAUDE.md`).
+
+When you change coaching content or tuning, run the tests first: a failing checkpoint test usually means a range in
+`skills.json` needs to move with the animation (or the other way round).
 
 ## Browser support
 

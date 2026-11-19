@@ -5,8 +5,8 @@ Guidance for Claude Code (and other AI assistants) working in this repository.
 ## What this is
 
 HoopForm Web is a browser-based 3D coaching tool for junior basketball (free throw, three-pointer, layup),
-built on **Babylon.js 9.36.0** with plain ES modules. There is **no build step, no bundler, no npm dependencies and no test suite**.
-`package.json` only contains `{"type":"module"}`.
+built on **Babylon.js 9.36.0** with plain ES modules. There is **no build step, no bundler and no npm dependencies**.
+Tests use Node's built-in runner (`npm test`); `package.json` only declares `"type": "module"`, the Node version and that script.
 
 ## Run it
 
@@ -28,6 +28,7 @@ Useful URL switches: `#webgpu` (WebGPU renderer), `?lite=on|off` (force lite mod
 - `src/math.js`, `geometry.js`, `config.js`: vector kit, geometry helpers, FIBA dimensions and default settings.
 - `assets/skills.json`: all coaching content, phases, key poses and timing. `assets/*.jpg|png`: court and ball textures.
 - `sw.js`, `manifest.json`, `icons/`: PWA and offline support.
+- `tests/`: automated tests for the headless code (`*.test.js`, plus `helpers.js`). `.github/workflows/test.yml` runs them in CI.
 
 ## Conventions to respect
 
@@ -59,14 +60,31 @@ longer updated. Edit the JSON directly; never assume a re-export will happen.
 
 ## Verifying changes
 
-There are no automated tests, so verify by running the app:
-1. Serve it and open the page; check the browser console for errors.
+**Run the tests first**: `npm test` (or `node --test`). They need Node 20+ and no install, and take roughly 10-30 s.
+They cover everything headless (see the table in the README's *Testing* section). They do **not** cover rendering, the HUD,
+cameras or touch input, so for those also check by eye:
+1. Serve the app and open the page; check the browser console for errors.
 2. Play all three skills, step through phases with the arrow keys, and try both handedness settings (`H`).
 3. Check the camera modes (`1`-`4`) and a narrow phone-sized viewport in portrait and landscape.
-4. Try `?lite=on`. For physics changes, confirm the free throw and three still go in and the layup run looks right.
+4. Try `?lite=on`.
+
+### Working with the tests
+
+- Add tests next to the code they cover, as `tests/<area>.test.js`, using `node:test` and `node:assert/strict`.
+- Use `sharedCore(skill, overrides)` from `tests/helpers.js` for read-only access to a `CoachCore`. Building one takes
+  0.1-0.25 s, and the cache is per test file. Use `makeCore()` for a pristine core. Always `seek()` before reading a shared core.
+- Keep the suite fast. Prefer one pass over a playback that several tests then assert on, and a small parameter grid
+  (the extremes) over a dense one.
+- **A failing checkpoint test is usually a content/tuning mismatch, not a code bug.** If you retime or re-pose a phase,
+  the `lo`/`hi` ranges in `assets/skills.json` may need to move with it, or the other way round. Checkpoints are only
+  guaranteed in range at the *end* of a phase, so tests sample there.
+- Tests assert documented behaviour (README numbers such as the release elbow angle and run-in speeds). If you deliberately
+  change that behaviour, update the README and the test together.
+- `tests/mirroring.test.js` has `todo` tests for a known guide-arm IK asymmetry. Leave them as `todo` until it is fixed, then promote them.
+- Do not add a test framework or dependencies; the built-in runner is enough.
 
 ## Docs and licenses
 
-- Keep `README.md` in sync when controls, files or features change.
+- Keep `README.md` in sync when controls, files, features or tests change.
 - Babylon.js is Apache-2.0; its notice lives in `THIRD_PARTY_LICENSES.md`.
 - The project itself has no license yet. Do not add one without being asked.
