@@ -54,7 +54,8 @@ class App {
     this.autoCam = true; this.camMode = 'auto'; this.fp = { dir: null, yaw: 0, pitch: 0, fov: 72 }; this.showAngles = true; this.forceLine = false; this.trailOn = true; this.gripYaw = 90;
     this.time = 0; this.keys = new Set(); this.freeRect = null;
     this.sfx = new Sfx(store.get('sound') !== false);                              // swish and bounce; browsers only start audio from a tap, click or key
-    for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, () => this.sfx.unlock(), { passive: true });
+    for (const ev of ['pointerdown', 'pointerup', 'mousedown', 'click', 'keydown', 'touchend']) window.addEventListener(ev, () => this.sfx.unlock(), { passive: true, capture: true });   // capture: nothing on the page can swallow the gesture first
+    this.sfx.onBlocked = () => { const n = performance.now(); if (n - (this._sfxToast ?? -1e9) > 15000) { this._sfxToast = n; this.flash('Sound is waiting for a click or key press (a browser rule). Check the tab is not muted.'); } };
     this.buildWorld();
     this.buildHud();
     this.bindInput();
@@ -522,7 +523,7 @@ class App {
   setBallSize(n) {
     this.s.ball_size = n; store.set('settings', this.s); this.buildPlayer(); $('sBall').value = String(n);
   }
-  setSound(v) { this.sfx.on = !!v; store.set('sound', this.sfx.on); if (v) this.sfx.unlock(); $('sSound').classList.toggle('on', this.sfx.on); this.flash(`Sound ${this.sfx.on ? 'on' : 'off'}`); if (this.vr && this.vr.panel) this.vr.panel.dirty = true; }
+  setSound(v) { this.sfx.on = !!v; store.set('sound', this.sfx.on); if (v) this.sfx.tick(); $('sSound').classList.toggle('on', this.sfx.on); this.flash(`Sound ${this.sfx.on ? 'on' : 'off'}`); if (this.vr && this.vr.panel) this.vr.panel.dirty = true; }
   toggleHand() { this.s.handedness = this.s.handedness === 'left' ? 'right' : 'left'; store.set('settings', this.s); this.buildPlayer(); this.flash(`${this.s.handedness === 'left' ? 'Left' : 'Right'}-handed shooter`); }
 
   // speed list that pops up from the speed button (closes on pick, outside tap or Esc)

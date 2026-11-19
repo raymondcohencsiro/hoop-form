@@ -138,7 +138,7 @@ floor reflection is off and the far upper seats are hidden. Controller models lo
 **Settings (⚙)**: player height, rim height, ball size 5/6/7, release angle, shadows, reflections, stands.
 They are remembered in the browser (`localStorage`).
 
-**Sound** (the **Sound** button under ⋯, or **M**): a swish as the ball drops through the net and a bounce for every dribble and floor bounce, placed in 3D around the camera (your head in VR). They are synthesized in code, so there are no audio files. They play only while time runs on by itself, so scrubbing stays quiet, and the browser only starts audio after your first tap, click or key press.
+**Sound** (the **Sound** button under ⋯, or **M**): a swish as the ball drops through the net and a bounce for every dribble and floor bounce, placed in 3D around the camera (your head in VR). They are synthesized in code, so there are no audio files. They play only while time runs on by itself, so scrubbing stays quiet, and the browser only starts audio after your first tap, click or key press (if it is still blocked when a sound is due, a message says so; turning Sound on plays a short confirmation bounce). If you hear nothing on a PC, check the tab is not muted (right-click the tab), the site's Sound permission is Allow (padlock › Site settings), and hard-reload (Ctrl+Shift+R) so the latest files load; `hoopform.sfx.state` in the console should read `running`.
 
 **Lite mode** (Auto / On / Off) drops reflections, the upper-tier seats and shadow resolution. On Auto it switches
 itself on if the frame rate stays under 30 fps. You can force it with `?lite=on` or `?lite=off` in the URL.
@@ -315,7 +315,7 @@ GitHub Actions runs it on every push and pull request (`.github/workflows/test.y
 | `mirroring.test.js` | A left-handed player is an exact mirror of a right-handed one (to 1 mm), and `mirrorText` swaps left and right correctly |
 | `body.test.js` | Over a whole playback: limbs keep their length (IK integrity), feet stay above the floor, nothing is NaN, the ball never teleports; where the player stands; the layup run-in speed profile |
 | `timeline.test.js` | Keyframe timeline passes through every key and never overshoots; mirroring poses is reversible |
-| `sfx.test.js` | sounds: one swish per made shot at the hoop, floor bounces that get quieter, one bounce per dribble; the synthesized sounds are finite, normalised, die away and have the right pitch range |
+| `sfx.test.js` | sounds: one swish per made shot at the hoop, floor bounces that get quieter, one bounce per dribble; the synthesized sounds are finite, normalised, die away and have the right pitch range; the player against a fake Web Audio API (blocked or suspended context, retry after a failed start, throttle, listener maths) |
 | `vr.test.js` | VR maths: every spot is a legal standing point for every skill and hand, viewpoints face the player, the panel layout has no overlapping buttons and every button is reachable, thumbstick edge detection |
 | `net.test.js`, `geometry.test.js`, `math.test.js`, `config.test.js` | The net simulation, mesh generators, vector/matrix maths and FIBA dimensions |
 
