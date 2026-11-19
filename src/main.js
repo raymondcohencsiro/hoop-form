@@ -10,6 +10,7 @@ import { OrbitCam, TrainerCam, ORDER, LABELS, STANCHIONS, forward, CAM_MODES, CA
 const CAM_HINTS = { auto: 'Auto camera: each phase picks the best view', third: 'Third person: drag to orbit, the camera follows the player',
   first: "First person: the player's own view - drag to look around", coach: 'Coach view: walk around the court' };
 import { installPhoneUI } from './phone.js';
+import { VR } from './vr.js';
 
 const BABYLON = window.BABYLON;
 const $ = (id) => document.getElementById(id);
@@ -55,6 +56,7 @@ class App {
     this.buildHud();
     this.bindInput();
     this.phone = installPhoneUI(this);
+    this.vr = new VR(this); this.vr.init().catch((err) => console.warn('VR unavailable', err));   // adds the Switch to VR button where WebXR works
     window.addEventListener('resize', () => { this.engine.resize(); this.refit(); });
     new ResizeObserver(() => this.refit()).observe($('right'));
     this.engine.runRenderLoop(() => this.frame());
@@ -77,6 +79,8 @@ class App {
     this.flash(v === 'auto' ? `Lite mode: automatic${this.autoLite ? ' (on now)' : ''}` : `Lite mode ${v}`);
   }
   buildWorld() {
+    if (this.vr && this.vr.active) { this.flash('Leave VR to change this'); return; }     // rebuilding the scene would end the VR session
+    if (this.vr) this.vr.dispose();
     if (this.scene) this.scene.dispose();
     const lite = this.liteOn(), dpr = window.devicePixelRatio || 1;
     this.s._lite = lite;
@@ -92,6 +96,7 @@ class App {
     this.proj = new BABYLON.Matrix();
     this.core.s = this.s; this.core.rim = new V3(0, this.s.rim_height, C.basketZ());
     this.buildPlayer();
+    if (this.vr) this.vr.onWorldRebuilt();
   }
   buildPlayer(keepTime = true) {
     const t = keepTime ? this.core.t : 0;
@@ -110,6 +115,7 @@ class App {
     c.seek(Math.min(t, c.end_time));
     this.cam.setPreset(this.cam.preset, true);
     if (this.hudBuilt) this.rebuildHudSkill();
+    if (this.vr) this.vr.onPlayerRebuilt();
   }
   /** Sample the whole motion once; fitting to the current screen is then cheap. */
   sampleFit() {
@@ -171,7 +177,9 @@ class App {
     const [idx] = c.timeline.segment(c.t), phase = c.display_skill.phases[idx];
     // cameras
     let pose;
-    if (this.trainer.active) {
+    const vr = !!(this.vr && this.vr.active);
+    if (vr) this.vr.update(dt, idx, phase);                               // in VR the headset drives the camera
+    else if (this.trainer.active) {
       this.trainer.update(dt, this.trainerInput(), c.focus(), STANCHIONS);
       pose = this.trainer.pose();
     } else {
@@ -188,7 +196,7 @@ class App {
       this.cam.update(dt, c.focus(), c.rim);
       pose = this.camMode === 'first' ? this.firstPersonPose(dt) : this.cam.pose();
     }
-    this.placeCamera(pose);
+    if (!vr) this.placeCamera(pose);
     // world
     this.avatarView.sync();
     this.ballView.sync(c.ballPos, c.ballRot);
@@ -202,7 +210,7 @@ class App {
     this.scene.render();
     this.updateAngles(phase);
     this.updateShotReadout();
-    this.updateHud(idx, phase, rawDt);
+    if (!vr) this.updateHud(idx, phase, rawDt);                           // the page HUD is not visible in a headset
   }
   placeCamera(p) {
     const cam = this.camera, f = this.freeRect || this.measureFree();
@@ -243,14 +251,16 @@ class App {
     const show = rt != null && b.t_through != null && b.entry_vel && c.skill.key !== 'layup' && c.t - rt >= b.t_through;
     if (!show) {
       this.overlays.setShotReadout(null); this.shotLabels.forEach((el) => { el.style.display = 'none'; });
-      card.classList.remove('show'); return;
+      card.classList.remove('show'); if (this.vr && this.vr.active) this.vr.hideLabels(3); return;
     }
+    const inVr = !!(this.vr && this.vr.active);
     const horiz = new V3(b.v0.x, 0, b.v0.z).norm(), rimY = c.rim.y;
     const anchors = this.overlays.setShotReadout({ p0: b.p0, launchDir: b.v0.norm(), horiz, entryPos: b.entry_pos, entryDir: b.entry_vel.norm(), apex: b.apex_pos, rimY });
     const launch = b.release_angle, entry = b.entry_angle, peak = b.apex_pos.y, above = peak - rimY;
     const vp = this.camera.viewport.toGlobal(this.engine.getRenderWidth(), this.engine.getRenderHeight());
     const tm = this.scene.getTransformMatrix(), sc = this.canvas.clientWidth / this.engine.getRenderWidth();
     [[anchors.launch, `Launch ${Math.round(launch)}°`], [anchors.apex, `Peak ${peak.toFixed(2)} m`], [anchors.entry, `Entry ${Math.round(entry)}°`]].forEach(([p, txt], i) => {
+      if (inVr) { this.vr.label(3 + i, p, txt, i === 1 ? '#ffd84d' : '#7fd8ff'); return; }
       const el = this.shotLabels[i], sp = BABYLON.Vector3.Project(new BABYLON.Vector3(p.x, p.y, p.z), BABYLON.Matrix.IdentityReadOnly, tm, vp);
       if (sp.z > 0 && sp.z < 1) { el.style.display = 'block'; el.textContent = txt; el.style.transform = `translate(${sp.x * sc}px, ${sp.y * sc}px) translate(-50%,-50%)`; }
       else el.style.display = 'none';
@@ -263,6 +273,11 @@ class App {
     if (key !== this._shotKey) {
       this._shotKey = key;
       card.innerHTML = `<div class="sc-h">Made shot</div><div class="sc-row"><span><b>${Math.round(launch)}°</b>launch</span><span><b>${peak.toFixed(2)} m</b>peak · ${above.toFixed(2)} m over ring</span><span><b>${Math.round(entry)}°</b>entry</span></div><div class="sc-v ${verdict[0]}">${verdict[1]}</div>`;
+    }
+    if (inVr) {                                                                   // the card becomes one label above the ring
+      card.classList.remove('show');
+      this.vr.label(6, new V3(c.rim.x, c.rim.y + 0.9, c.rim.z), `Entry ${Math.round(entry)}° · ${verdict[1].split(' - ')[0]}`, { good: '#5be37a', warn: '#ffb347', bad: '#ff6a5a' }[verdict[0]]);
+      return;
     }
     const f = this.freeRect || this.measureFree();
     card.style.left = `${(f.x0 + f.x1) / 2}px`; card.style.top = `${f.y0 + 10}px`;
@@ -286,7 +301,7 @@ class App {
     return paths;
   }
   updateAngles(phase) {
-    const c = this.core, labels = this.angleLabels;
+    const c = this.core, labels = this.angleLabels, vr = !!(this.vr && this.vr.active);
     let k = 0;
     if (this.showAngles && this.camMode !== 'first') {   // overlays would sit in the player's face in first person
       const vp = this.camera.viewport.toGlobal(this.engine.getRenderWidth(), this.engine.getRenderHeight());
@@ -297,6 +312,7 @@ class App {
         if (res.value == null) continue;
         const [a, b, cc] = TRIPLE[ch.metric].map((n) => c.avatar.world(`${n}_${c.avatar.side}`));
         const anchor = this.overlays.setArc(k, a, b, cc, res.ok, 0.10 * this.s.player_height / 1.6);
+        if (vr) { this.vr.label(k, anchor, `${Math.round(res.value)}°`, res.ok ? '#5be37a' : '#ff9a3c'); k++; continue; }   // 3D label in the headset
         const sp = BABYLON.Vector3.Project(new BABYLON.Vector3(anchor.x, anchor.y, anchor.z), BABYLON.Matrix.IdentityReadOnly, tm, vp);
         const el = labels[k];
         if (sp.z > 0 && sp.z < 1) {
@@ -307,7 +323,7 @@ class App {
         k++;
       }
     }
-    for (let i = k; i < 3; i++) { this.overlays.setArc(i, null); labels[i].style.display = 'none'; }
+    for (let i = k; i < 3; i++) { this.overlays.setArc(i, null); labels[i].style.display = 'none'; if (vr) this.vr.label(i, null); }
   }
 
   // ---------------------------------------------------------------- HUD
@@ -491,6 +507,13 @@ class App {
     const view = { pos, yaw: yaw + this.fp.yaw, pitch: Math.max(-80, Math.min(80, pitch + this.fp.pitch)) };
     // landscape: centre the view in the area the panels leave free; portrait: fit the width
     return innerWidth >= innerHeight ? { ...view, vfov: this.fp.fov * 0.8 } : { ...view, hfov: this.fp.fov };
+  }
+  setPlayerHeight(h) {
+    this.s.player_height = h; store.set('settings', this.s); this.buildPlayer();
+    $('sHeight').value = h; $('vHeight').textContent = `${h.toFixed(2)} m`;
+  }
+  setBallSize(n) {
+    this.s.ball_size = n; store.set('settings', this.s); this.buildPlayer(); $('sBall').value = String(n);
   }
   toggleHand() { this.s.handedness = this.s.handedness === 'left' ? 'right' : 'left'; store.set('settings', this.s); this.buildPlayer(); this.flash(`${this.s.handedness === 'left' ? 'Left' : 'Right'}-handed shooter`); }
 

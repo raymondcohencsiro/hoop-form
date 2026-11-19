@@ -25,6 +25,7 @@ A FIBA arena, a coaching avatar and phase-by-phase biomechanics for the
 - [Quick start](#quick-start)
 - [Controls](#controls)
 - [Using it on a phone](#using-it-on-a-phone)
+- [Using it in VR](#using-it-in-vr)
 - [Settings and performance](#settings-and-performance)
 - [Deploy to GitHub Pages](#deploy-to-github-pages)
 - [How it is built](#how-it-is-built)
@@ -107,6 +108,31 @@ On touch: left stick, drag to look, and JUMP / CROUCH / NOCLIP / FOV buttons.
   Sideways, coaching is an overlay you can hide.
 - A short tour runs on the first visit.
 
+## Using it in VR
+
+Where the browser offers an immersive VR session (Meta Quest Browser, desktop Chrome/Edge with a headset, or the
+Immersive Web Emulator extension) a **Switch to VR** button appears at the top. **WebXR needs HTTPS or `localhost`**:
+open the GitHub Pages copy in the headset, or forward a port (`adb reverse tcp:8000 tcp:8000`, then browse to
+`http://localhost:8000`). It uses WebGL2 (if you opened `#webgpu`, the button reloads without it).
+
+You stand in the arena at real size, so the 1.6 m player is a real person next to you. Everything on the phone is there:
+
+| Phone | VR |
+|---|---|
+| Tap = play / pause | **A** (right) |
+| ⏮ / ⏭ phase | **X** (left) / **B** (right) |
+| Speed | right thumbstick up / down, or the panel |
+| Turn | right thumbstick left / right (45° snap turns) |
+| Coaching sheet, timeline, skill, handedness, toggles | floating panel: point with a controller and pull the trigger. **Y** (left) shows or hides it |
+| Cameras | **Spots** tab: viewpoints around the player (Coach, Side, Front, Behind, Hands, Over shoulder, Wide) |
+| Walk around | **Teleport**: push the left thumbstick forward, aim the arc, let go. Also the court spots in the **Spots** tab: free-throw line, three-point top / wing / corner, under the basket, courtside |
+| Angles, line, trail | **More** tab. Joint angles and the shot readout become 3D labels |
+
+Controllers without A / B / X / Y use the grip button (right = play, left = panel). **Follow the player** snaps you back
+to the same viewpoint when the player runs off (the layup), instead of moving the camera smoothly, which causes motion sickness.
+Rim height, shadows, crowd and lite mode rebuild the scene and stay outside VR. To keep frame rate up in the headset the
+floor reflection is off and the far upper seats are hidden. Controller models load from the WebXR input-profiles CDN (jsDelivr).
+
 ## Settings and performance
 
 **Settings (⚙)**: player height, rim height, ball size 5/6/7, release angle, shadows, reflections, stands.
@@ -158,6 +184,9 @@ src/body.js         avatar surface: skinned body + clothing, sculpted head, hand
 src/avatarView.js   avatar rendering: Babylon skeleton driven by the joints, materials, painted textures
 src/cameras.js      camera modes, coaching presets with auto-fit (used by Auto), walk-around coach view
 src/phone.js        touch UI: coaching sheet, options sheet, tour, floating joystick, tilt, wake lock
+src/vr.js           VR (WebXR): session, controllers, teleport, 3D labels, quality switches
+src/vrPanel.js      the floating VR coaching panel (a canvas texture on a plane)
+src/vrmath.js       headless VR maths: viewpoints and court spots, walk clamp, panel layout and hit-testing, thumbstick edges
 src/coach.js        headless coaching core (port of the Python Coach): timeline, footwork, ball
 src/avatar.js       skeleton, IK (guide hand: damped least squares), arm/torso clearance
 src/gait.js         run-in gait for the layup (speed profile, flights, footprints)
@@ -281,6 +310,7 @@ GitHub Actions runs it on every push and pull request (`.github/workflows/test.y
 | `mirroring.test.js` | A left-handed player is an exact mirror of a right-handed one (to 1 mm), and `mirrorText` swaps left and right correctly |
 | `body.test.js` | Over a whole playback: limbs keep their length (IK integrity), feet stay above the floor, nothing is NaN, the ball never teleports; where the player stands; the layup run-in speed profile |
 | `timeline.test.js` | Keyframe timeline passes through every key and never overshoots; mirroring poses is reversible |
+| `vr.test.js` | VR maths: every spot is a legal standing point for every skill and hand, viewpoints face the player, the panel layout has no overlapping buttons and every button is reachable, thumbstick edge detection |
 | `net.test.js`, `geometry.test.js`, `math.test.js`, `config.test.js` | The net simulation, mesh generators, vector/matrix maths and FIBA dimensions |
 
 **Known issue, tracked as `TODO`.** The off-hand ("guide") arm is solved by IK and is not an exact mirror image
@@ -297,7 +327,7 @@ When you change coaching content or tuning, run the tests first: a failing check
 ## Browser support
 
 Any current browser with **WebGL2** (Chrome, Edge, Firefox, Safari 15+, and their mobile versions).
-WebGPU is optional. Service-worker install, wake lock and tilt-to-look depend on the browser and on HTTPS.
+WebGPU is optional. VR needs a WebXR browser (Meta Quest Browser, Chrome or Edge with a headset) over HTTPS or `localhost`. Service-worker install, wake lock and tilt-to-look depend on the browser and on HTTPS.
 
 ## Third-party software
 

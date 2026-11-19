@@ -153,7 +153,10 @@ export function buildArena(scene, settings, shadows, courtInfo, assetBase) {
     if (!mirror) return;
     mirror.renderList = scene.meshes.filter((m) => !skipReflect.has(m.name) && m.renderingGroupId === 0 && !m.metadata?.noReflect);   // overlays stay out of the floor
   };
-  return { floor, hoops, hoop: hoops[0], refreshReflections };
+  // VR: the planar mirror is a single-view effect (wrong in stereo) and costs a second render, so VR switches it off in place
+  const reflMats = [floorMat, lines.material];
+  const setVrMode = (on) => { if (mirror) for (const mt of reflMats) mt.reflectionTexture = on ? null : mirror; };
+  return { floor, hoops, hoop: hoops[0], refreshReflections, setVrMode };
 }
 /**
  * Varnished maple: the court texture (markings + paint) plus a tiled 2 m x 2 m

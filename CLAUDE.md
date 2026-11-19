@@ -25,6 +25,8 @@ Useful URL switches: `#webgpu` (WebGPU renderer), `?lite=on|off` (force lite mod
 - `src/render.js`, `src/avatarView.js`, `src/stadium.js`, `src/court.js`, `src/body.js`, `src/net.js`: Babylon.js scene and meshes.
 - `src/coach.js` (`CoachCore`), `avatar.js`, `ball.js`, `gait.js`, `metrics.js`, `animation.js`: **headless** coaching maths.
 - `src/cameras.js`, `src/phone.js`: cameras and touch UI.
+- `src/vr.js`, `src/vrPanel.js`: VR mode (WebXR through Babylon's `createDefaultXRExperienceAsync`). `src/vrmath.js` is the **headless**
+  half (spots, walk clamp, panel layout and hit-testing, stick edges) and is tested in `tests/vr.test.js`.
 - `src/math.js`, `geometry.js`, `config.js`: vector kit, geometry helpers, FIBA dimensions and default settings.
 - `assets/skills.json`: all coaching content, phases, key poses and timing. `assets/*.jpg|png`: court and ball textures.
 - `sw.js`, `manifest.json`, `icons/`: PWA and offline support.
@@ -45,6 +47,8 @@ Useful URL switches: `#webgpu` (WebGPU renderer), `?lite=on|off` (force lite mod
 - **Performance**: phones are a first-class target. Respect the `mobile` / `lite` flags when adding meshes, shadows,
   reflections or per-frame allocations. Seats use thin instances; keep it that way.
 - **Overlay meshes** that should not appear in the floor mirror carry `metadata.noReflect`.
+- **VR**: no `babylonjs-gui`; the panel and labels are canvas textures. Only the floor and the panel are pickable while the XR helper exists. Never move
+  the VR camera smoothly (comfort); use fade-teleports. In VR `frame()` skips `placeCamera` and the DOM HUD, so anything new that projects to DOM labels needs a 3D label path (`vr.label`).
 - **No new runtime dependencies** without asking. If one is added, update `THIRD_PARTY_LICENSES.md` and the README.
 
 ## Coaching content (`assets/skills.json`)
@@ -67,6 +71,9 @@ cameras or touch input, so for those also check by eye:
 2. Play all three skills, step through phases with the arrow keys, and try both handedness settings (`H`).
 3. Check the camera modes (`1`-`4`) and a narrow phone-sized viewport in portrait and landscape.
 4. Try `?lite=on`.
+5. VR (not covered by tests): serve over `localhost`, use the Immersive Web Emulator extension or a headset, press **Switch to VR**, and check
+   teleport (left stick), the panel (Y, trigger), A / B / X, snap turn, the Spots tab and the 3D angle labels. While in VR the scene must not be
+   rebuilt (`buildWorld` refuses), because the XR helper belongs to one scene.
 
 ### Working with the tests
 
