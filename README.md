@@ -1,67 +1,151 @@
-# HoopForm Web (Babylon.js)
+<div align="center">
 
-Browser version of HoopForm, the junior basketball coaching tool: a 3D FIBA arena, a
-coaching avatar and step-by-step biomechanics for the **free throw**, **three-pointer** and
-**layup**. Runs from a link on desktop and phone browsers (WebGL2; WebGPU opt-in).
+# 🏀 HoopForm Web
 
-## Run locally
+**Step-by-step 3D basketball coaching for junior players, right in the browser.**
 
-Any static file server works (ES modules don't load from `file://`):
+A FIBA arena, a coaching avatar and phase-by-phase biomechanics for the
+**free throw**, the **three-pointer** and the **layup**. No install, no build step.
+
+![Babylon.js 9.36](https://img.shields.io/badge/Babylon.js-9.36.0-bb464b)
+![WebGL2](https://img.shields.io/badge/WebGL2-WebGPU%20opt--in-blue)
+![No build step](https://img.shields.io/badge/build-none-brightgreen)
+![PWA](https://img.shields.io/badge/PWA-offline%20ready-5a0fc8)
+
+</div>
+
+<!-- Add a screenshot or GIF here once you have one, e.g.:
+<p align="center"><img src="docs/screenshot.png" alt="HoopForm free throw coaching view" width="720"></p>
+-->
+
+## Contents
+
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Controls](#controls)
+- [Using it on a phone](#using-it-on-a-phone)
+- [Settings and performance](#settings-and-performance)
+- [Deploy to GitHub Pages](#deploy-to-github-pages)
+- [How it is built](#how-it-is-built)
+- [Editing coaching content](#editing-coaching-content)
+- [Browser support](#browser-support)
+- [Third-party software](#third-party-software)
+
+## Features
+
+- **Three skills**: free throw (B.E.E.F: Balance, Eyes, Elbow, Follow-through), three-pointer and running layup.
+- **Phase-by-phase coaching**: every phase has cues, the reason behind them, live checkpoint measurements,
+  common faults with their fixes, and one short drill.
+- **Full 3D arena**: FIBA court with painted lines, a two-tier stadium, reflective floor and hoops with a simulated net,
+  tempered-glass backboard and portable stanchions.
+- **A fully procedural player**: one skinned body with jersey, shorts, socks and sneakers, a sculpted head,
+  and IK-driven hands. Height, handedness and ball size are adjustable.
+- **Four camera modes**: Auto (each phase picks a view), Third person, First person (the player's eyes) and
+  a walk-around Coach view at junior eye height.
+- **Shot readout**: launch angle, entry angle and arc, with ideal-path and acceptable-band guides.
+- **Slow motion** from 0.1× to 1×, step through phases, left- and right-handed shooters.
+- **Phone friendly**: touch controls, a swipeable coaching sheet, tilt-to-look, wake lock and an automatic lite mode.
+- **Installable and offline**: add it to the home screen; a service worker caches the app after the first visit.
+
+## Quick start
+
+There is nothing to build. Any static file server works (ES modules do not load from `file://`).
 
 ```bash
+git clone <this-repo-url> hoopform-web
 cd hoopform-web
 python -m http.server 8000
 # open http://localhost:8000
 ```
 
-Add `#webgpu` to the URL (or use *Settings → Try WebGPU*) to try the WebGPU renderer; it
-falls back to WebGL2 automatically.
+On Windows, double-click `run.bat`: it starts the same server on port 8010 and opens the browser.
+
+The first load needs internet access because Babylon.js is loaded from the jsDelivr CDN
+(see [Third-party software](#third-party-software)). After that the service worker keeps a cached copy for offline use.
+
+Add `#webgpu` to the URL (or use *Settings → Try WebGPU*) to try the WebGPU renderer;
+it falls back to WebGL2 automatically. Press **?** in the app for the in-app shortcut list.
 
 ## Controls
 
-| Desktop | Touch | Action |
-|---|---|---|
-| Space | ▶ / ⏸ | Play the whole skill on repeat / pause |
-| → / ← | ⏭ / ⏮ | Play the next phase and stop / back one phase |
-| K | skill menu | Free throw → three-pointer → layup |
-| + / − | Speed | 0.1×–1× speed (the speed button opens a list of speeds) |
-| 1–4, C | camera buttons | Auto (each phase picks a view) · Third person (orbit camera that follows the player) · First person (the player's eyes; drag looks around, wheel/pinch changes the field of view) · Coach view (walk around); C = next camera |
-| drag, wheel, Q/E, [ ] | drag, pinch | Orbit, zoom, field of view |
-| F, 4 | Coach view | Walk the court at the junior's eye height: WASD run, Shift walk, right-click jump, Ctrl crouch, inverted-Y mouse look (click the view to capture the mouse), N noclip (right-click/E up, Ctrl/Q down), wheel FOV, F/Esc exit. Touch: left stick, drag to look, JUMP / CROUCH / NOCLIP / FOV buttons |
-| H | Right | Left- or right-handed shooter |
-| A, L, T, R | Angles, Line, Trail | Protractors · shooting line · ball trail · restart |
+### Desktop
 
-On a phone: drag one finger on the court to turn the camera, tap to play or pause, ⏮ / ⏭ for phases, two fingers to
-turn the camera and pinch to zoom. The camera button at the top cycles Auto → 3rd person → 1st person → Coach view. The playback bar is ⏮ ▶/⏸ ⏭ and a
-Speed button (tap for 0.1×–1×); ⋯ also holds speed,
-cameras, display toggles, handedness, settings, coach view (with look speed and tilt-to-look)
-and full screen. Held upright, the coaching panel shows the title plus one section at a time - Cues, Why,
-Checks, Faults, Drill: swipe it sideways or tap the tabs. Tap or drag the handle to fold it to
-the title; it folds while a continuous loop plays and comes back when you pause. Sideways, coaching is an overlay
-you can hide. A short tour runs on first visit.
+| Key / mouse | Action |
+|---|---|
+| `Space` | Play the whole skill on repeat / pause |
+| `→` or `D` / `←` | Play the next phase and stop / go back one phase |
+| `K` | Next skill: free throw → three-pointer → layup |
+| `+` / `−` | Playback speed, 0.1×–1× |
+| `1`–`4`, `C` | Cameras: Auto · Third person · First person · Coach view; `C` cycles |
+| drag, wheel, `Q` / `E`, `[` `]` | Orbit, zoom, field of view |
+| `H` | Switch between left- and right-handed shooter |
+| `A`, `L`, `T`, `R` | Toggle angle protractors · shooting line · ball trail; restart |
+| `?` | Show the shortcut list |
 
-Lite mode (Auto / On / Off): drops reflections, the upper-tier seats and shadow resolution;
-on Auto it switches itself on if the frame rate stays under 30 fps. The screen stays awake
-while playing, drawing stops when the page is hidden, and the page can be added to the home
-screen (manifest + offline service worker, when opened directly rather than inside a frame).
+### Camera modes
 
-Settings (⚙): player height, rim height, ball size 5/6/7, release angle, shadows, reflections, stands.
-They are remembered in the browser.
+| Mode | Behaviour |
+|---|---|
+| **Auto** | Each phase picks a view. Just before release the camera swings over the shooting shoulder so the hand, head, arc and ring all fit. Turning the view hands control to Third person. |
+| **Third person** | Orbit camera that keeps your angle and distance while following the player. |
+| **First person** | The player's eyes, following the head as it tracks the rim. Drag to look around, wheel or pinch for field of view. Overlays are hidden. |
+| **Coach view** (`F` or `4`) | Walk the court at the junior's eye height. |
 
-## The avatar
+**Coach view controls**: `WASD` run, `Shift` walk, right-click jump, `Ctrl` crouch, inverted-Y mouse look
+(click the view to capture the mouse), `N` noclip (right-click/`E` up, `Ctrl`/`Q` down), wheel for FOV, `F` or `Esc` to exit.
+On touch: left stick, drag to look, and JUMP / CROUCH / NOCLIP / FOV buttons.
 
-The player is one continuous skinned body (torso, arms and legs bend smoothly at the
-elbows, knees, hips and spine) wearing skinned clothing: a tank-top jersey with trimmed
-armholes and numbers, loose shorts with side stripes, crew socks and high-top sneakers.
-The head is sculpted (jaw, cheekbones, brow, nose, lips, eye sockets) with eyelids, irises,
-ears and a short haircut. Everything is generated in code from the same skeleton the
-coaching maths uses, so the motion and every checkpoint are unchanged; only the surface
-that follows the skeleton is new.
+## Using it on a phone
+
+- Drag one finger on the court to turn the camera, tap to play or pause, pinch to zoom.
+- The playback bar is ⏮ ▶/⏸ ⏭ plus a Speed button; the **⋯** menu holds speed, cameras, display toggles,
+  handedness, settings, Coach view (with look speed and tilt-to-look) and full screen.
+- Held upright, the coaching panel shows the title plus one section at a time (Cues, Why, Checks, Faults, Drill).
+  Swipe sideways or tap the tabs. Drag the handle to fold it; it folds itself while a loop plays.
+  Sideways, coaching is an overlay you can hide.
+- A short tour runs on the first visit.
+
+## Settings and performance
+
+**Settings (⚙)**: player height, rim height, ball size 5/6/7, release angle, shadows, reflections, stands.
+They are remembered in the browser (`localStorage`).
+
+**Lite mode** (Auto / On / Off) drops reflections, the upper-tier seats and shadow resolution. On Auto it switches
+itself on if the frame rate stays under 30 fps. You can force it with `?lite=on` or `?lite=off` in the URL.
+The screen stays awake while playing and drawing stops when the page is hidden.
+
+## Deploy to GitHub Pages
+
+The site is plain static files with relative paths, so it works from a repository sub-path as-is:
+
+1. Push the repository to GitHub.
+2. Go to **Settings → Pages**, set the source to *Deploy from a branch*, pick your default branch and the `/ (root)` folder.
+3. Open `https://<user>.github.io/<repo>/`.
+
+Pages serves over HTTPS, which the service worker and "add to home screen" need.
 
 ## How it is built
 
+```mermaid
+flowchart LR
+  S[assets/skills.json] --> C[coach.js<br/>CoachCore]
+  C --> A[avatar.js<br/>skeleton + IK]
+  C --> B[ball.js + net.js<br/>flight + net]
+  C --> M[metrics.js<br/>checkpoints]
+  C --> V[main.js<br/>App: loop, HUD, input]
+  V --> R[render.js + avatarView.js<br/>Babylon.js scene]
+  V --> P[phone.js<br/>touch UI]
+  V --> K[cameras.js]
+```
+
+The coaching maths is **headless** (no Babylon.js in `coach.js`, `avatar.js`, `ball.js`, `gait.js`, `metrics.js`),
+so the same skeleton drives both the checkpoints and the rendered body.
+
 ```
 index.html          page, HUD styles and layout (desktop / phone portrait / phone landscape)
+manifest.json, sw.js, icons/   home-screen install and offline support
+run.bat             Windows helper: local server on port 8010 + opens the browser
+THIRD_PARTY_LICENSES.md        licenses and notices for third-party software
 src/main.js         app: game loop, HUD, input, playback, camera framing
 src/render.js       Babylon.js: engine, lights + shadows, arena, reflective floor, ball, net, overlays
 src/court.js        painted maple court surface + every FIBA line as vector geometry
@@ -74,17 +158,32 @@ src/coach.js        headless coaching core (port of the Python Coach): timeline,
 src/avatar.js       skeleton, IK (guide hand: damped least squares), arm/torso clearance
 src/gait.js         run-in gait for the layup (speed profile, flights, footprints)
 src/ball.js         ball flight: launch solve, bank shots, swish, net drag, floor bounces
+src/net.js          hoop net simulation (Verlet + constraints)
 src/animation.js    monotone cubic keyframe timeline, left-handed mirroring
 src/metrics.js      the live checkpoint metrics
 src/math.js, geometry.js, config.js
 assets/             skills.json, court and ball textures (exported from Python)
 ```
 
-The Python app stays the authoring tool. The JS core is a straight port and was checked
-numerically against it (end times and release angles match; joints agree to well under
-1 mm except where the guide-hand IK picks an equally valid solution).
+**Conventions**: units are metres and degrees; the coordinate system is left-handed like Babylon.js
+(+X to the shooter's right, +Y up, +Z toward the basket).
 
-**Web-only changes since the port** (the Python app is no longer updated):
+### The avatar
+
+The player is one continuous skinned body (torso, arms and legs bend smoothly at the elbows, knees, hips and spine)
+wearing skinned clothing: a tank-top jersey with trimmed armholes and numbers, loose shorts with side stripes, crew socks
+and high-top sneakers. The head is sculpted (jaw, cheekbones, brow, nose, lips, eye sockets) with eyelids, irises, ears and a
+short haircut. Everything is generated in code from the same skeleton the coaching maths uses, so the motion and every
+checkpoint are unchanged; only the surface that follows the skeleton is new.
+
+### Relationship to the Python app
+
+HoopForm began as a Python (Ursina/Panda3D) authoring tool. The JS core is a straight port and was checked numerically
+against it (end times and release angles match; joints agree to well under 1 mm except where the guide-hand IK picks an
+equally valid solution). **The Python app is no longer updated**, and the web version has since diverged (below).
+
+<details>
+<summary><strong>Web-only changes since the port</strong> (click to expand)</summary>
 
 - *Throwing release* (`CoachCore._retimeRelease`). For the last 0.12 s before release the shooting
   arm follows a solved path instead of the authored keys: the hand runs on a smooth curve into the
@@ -138,10 +237,38 @@ numerically against it (end times and release angles match; joints agree to well
   shows the fix on its own line) and a `drill`: one short practice drill (`"Name: how to do it"`).
   Left-handed players get the same text with left/right swapped (`mirrorText`).
 
-After changing a skill, the court or the ball textures in Python, re-export:
+</details>
 
-```bash
-python tools/export_web.py ../hoopform-web/assets
-```
+## Editing coaching content
 
-Babylon.js 9.36.0 loads from jsDelivr; nothing needs building.
+All coaching text and timing live in `assets/skills.json`, so most content changes need no code.
+Each skill has `phases`, and each phase has:
+
+| Field | Meaning |
+|---|---|
+| `title`, `duration`, `pose` | Name, length in seconds and the key pose |
+| `cues` | Shown first; each fits on one line, even on a small phone held sideways. Text before an optional ` — ` is bold. |
+| `why` | The reason behind the phase |
+| `faults` | Written as `"problem → fix"`; the panel shows the fix on its own line |
+| `drill` | One short practice drill, `"Name: how to do it"` |
+| `checks`, `focus`, `camera`, `stance`, `arc`, `ball` | Checkpoint ranges, highlighted joints, camera preset, footwork and ball data |
+
+Left-handed players get the same text with left and right swapped automatically (`mirrorText`).
+
+Re-exporting `skills.json` from the Python tool overwrites the web-only changes listed above, so edit the JSON directly instead.
+
+## Browser support
+
+Any current browser with **WebGL2** (Chrome, Edge, Firefox, Safari 15+, and their mobile versions).
+WebGPU is optional. Service-worker install, wake lock and tilt-to-look depend on the browser and on HTTPS.
+
+## Third-party software
+
+The only third-party dependency is [Babylon.js](https://www.babylonjs.com) 9.36.0, licensed under the
+Apache License 2.0 and loaded from the jsDelivr CDN rather than copied into this repository.
+Its copyright notice and the full license text are in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+If you host a copy of Babylon.js yourself, ship that file with it.
+
+## License
+
+No license has been chosen for HoopForm itself yet. Until one is added, all rights are reserved by the author.
