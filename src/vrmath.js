@@ -82,7 +82,7 @@ export const TABS = [['cues', 'Cues'], ['why', 'Why'], ['checks', 'Checks'], ['f
 export const CONTENT = { x: 40, y: 156, w: 944, h: 384 };
 /** The panel when it rides on the left controller. Controller space: +X right, +Y up out of the thumbstick face, +Z forward.
  *  It floats above the controller with its top edge pointing away from you, tilted back so it faces your eyes. Tune here. */
-export const HELD_PANEL = { w: 0.5, tiltDeg: 40, offset: { x: 0, y: 0.16, z: 0.04 } };
+export const HELD_PANEL = { w: 0.36, tiltDeg: 40, offset: { x: 0, y: 0.13, z: 0.03 } };
 /** the panel's own right / up / front (the side you read it from) axes, in controller space */
 export function heldPanelAxes(tiltDeg = HELD_PANEL.tiltDeg) {
   const t = tiltDeg * DEG, s = Math.sin(t), c = Math.cos(t);
@@ -106,7 +106,7 @@ export function panelLayout(tab, skillKeys = []) {
   TABS.forEach(([k, l], i) => add(`tab:${k}`, 40 + i * tw, 92, tw - 6, 52, l));
   add('timeline', 40, 556, 944, 44);
   add('prev', 40, 616, 110, 88); add('play', 160, 616, 150, 88); add('next', 320, 616, 110, 88);
-  add('speed:-', 470, 630, 70, 60, '-'); add('speed:+', 656, 630, 70, 60, '+'); add('hand', 760, 630, 224, 60);
+  add('speed:-', 440, 630, 60, 60, '-'); add('speed:+', 590, 630, 60, 60, '+'); add('hand', 666, 630, 160, 60); add('exit', 838, 630, 146, 60, 'Exit VR');   // Exit VR is always on screen
   const grid = (ids, x0, y0, cols, w, h, gap, make) => ids.forEach((id, i) => make(id, x0 + (i % cols) * (w + gap), y0 + Math.floor(i / cols) * (h + gap), w, h));
   if (tab === 'spots') {
     const w = (CONTENT.w - 36) / 4;
@@ -119,7 +119,6 @@ export function panelLayout(tab, skillKeys = []) {
     ['angles', 'line', 'trail'].forEach((k, i) => add(`tg:${k}`, CONTENT.x + i * ((CONTENT.w - 24) / 3 + 12), 262, (CONTENT.w - 24) / 3, 54, k));
     add('height:-', CONTENT.x + 520, 334, 70, 54, '-'); add('height:+', CONTENT.x + 760, 334, 70, 54, '+');
     [5, 6, 7].forEach((n2, i) => add(`ball:${n2}`, CONTENT.x + 520 + i * 142, 406, 130, 54, String(n2)));
-    add('exit', CONTENT.x, 474, CONTENT.w, 58, 'Exit VR');
   }
   return R;
 }

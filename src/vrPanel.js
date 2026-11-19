@@ -117,17 +117,17 @@ export class VrPanel {
     if (m.release != null) { ctx.fillStyle = COL.bad; ctx.fillRect(tl.x + tl.w * m.release - 2, tl.y + 4, 4, 36); }
     ctx.beginPath(); ctx.arc(tl.x + tl.w * m.u, tl.y + 22, 14, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
     // speed readout between the speed buttons
-    ctx.fillStyle = COL.fg; ctx.font = `700 32px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(`${m.speed}×`, 598, 660); ctx.textAlign = 'left';
-    this.tex.update(false);
+    ctx.fillStyle = COL.fg; ctx.font = `700 32px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(`${m.speed}×`, 545, 660); ctx.textAlign = 'left';
+    this.tex.update();                                                              // default invertY: canvas top = panel top (update(false) draws it upside down, and clicks land mirrored)
   }
 
   button(ctx, r, m) {
     if (r.id === 'timeline') return;
     const on = m.on.has(r.id) || (r.id === 'tab:' + this.tab), hov = this.hover === r.id;
     rrect(ctx, r.x, r.y, r.w, r.h, 14);
-    ctx.fillStyle = on ? COL.accent : hov ? COL.hover : COL.btn; ctx.fill();
+    ctx.fillStyle = r.id === 'exit' ? (hov ? 'rgba(255,106,90,0.55)' : 'rgba(255,106,90,0.30)') : on ? COL.accent : hov ? COL.hover : COL.btn; ctx.fill();
     if (hov && !on) { ctx.lineWidth = 3; ctx.strokeStyle = COL.accent; ctx.stroke(); }
-    const fg = on ? COL.ink : COL.fg, cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    const fg = r.id === 'exit' ? '#ffb4a8' : on ? COL.ink : COL.fg, cx = r.x + r.w / 2, cy = r.y + r.h / 2;
     if (r.id === 'play') return icon(ctx, m.playing ? 'pause' : 'play', cx, cy, 40, fg);
     if (r.id === 'prev' || r.id === 'next') return icon(ctx, r.id, cx, cy, 40, fg);
     if (r.id === 'hide') return icon(ctx, 'close', cx, cy, 30, fg);
@@ -197,5 +197,6 @@ export class VrPanel {
     ctx.fillStyle = COL.fg; ctx.font = `700 28px ${FONT}`; ctx.textBaseline = 'middle';
     ctx.fillText('Player height', x + 4, 361); ctx.textAlign = 'center'; ctx.fillText(m.heightText, x + 675, 361); ctx.textAlign = 'left';
     ctx.fillText('Ball size', x + 4, 433);
+    ctx.fillStyle = COL.dim; ctx.font = `600 22px ${FONT}`; ctx.fillText('Leave VR any time: Exit VR (bottom right), or squeeze both grips for 1 s', x + 4, 506);
   }
 }

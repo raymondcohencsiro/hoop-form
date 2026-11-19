@@ -124,3 +124,8 @@ test('held panel: right-handed axes, readable from above and behind the controll
   assert.ok(up.z > 0, 'its top edge points away from the wearer (the way the controller points)');
   assert.ok(HELD_PANEL.w < PANEL_M.w && HELD_PANEL.w > 0.2, 'hand-sized');
 });
+
+test('Exit VR is on every tab, and the held panel stays small', () => {
+  for (const [tab] of TABS) assert.ok(panelLayout(tab, ['shooting', 'three', 'layup']).some((r) => r.id === 'exit'), `${tab}: has Exit VR`);
+  assert.ok(HELD_PANEL.w <= 0.4, 'a small panel on the controller');
+});

@@ -123,7 +123,7 @@ You stand in the arena at real size, so the 1.6 m player is a real person next t
 | ⏮ / ⏭ phase | **X** (left) / **B** (right) |
 | Speed | right thumbstick up / down, or the panel |
 | Turn | right thumbstick left / right (45° snap turns) |
-| Coaching sheet, timeline, skill, handedness, toggles | the panel floats above the **left** controller: point the **right** controller at it and pull the trigger. **Y** (left) shows or hides it. With no left controller tracked it floats in front of you instead |
+| Coaching sheet, timeline, skill, handedness, toggles | the panel floats above the **left** controller: point the **right** controller at it and pull the trigger. **Y** (left) shows or hides it. **Exit VR** is on every tab (bottom right); squeezing **both grips for a second** leaves VR even when the panel is hidden. With no left controller tracked it floats in front of you instead |
 | Cameras | **Spots** tab: viewpoints around the player (Coach, Side, Front, Behind, Hands, Over shoulder, Wide) |
 | Walk around | **Teleport**: push the left thumbstick forward, aim the arc, let go. Also the court spots in the **Spots** tab: free-throw line, three-point top / wing / corner, under the basket, courtside |
 | Angles, line, trail | **More** tab. Joint angles and the shot readout become 3D labels |

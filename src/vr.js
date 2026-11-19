@@ -39,7 +39,7 @@ class VrLabels {
     let fs = it.w > 300 ? 46 : 54; ctx.font = `800 ${fs}px "Helvetica Neue", Arial, sans-serif`;
     while (fs > 20 && ctx.measureText(text).width > it.w - 24) { fs -= 2; ctx.font = `800 ${fs}px "Helvetica Neue", Arial, sans-serif`; }
     ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, it.w / 2, it.h / 2 + 2);
-    it.tex.update(false);
+    it.tex.update();                                                                // default invertY (false would draw the label upside down)
   }
   hide(from = 0) { for (let i = from; i < this.items.length; i++) this.items[i].mesh.setEnabled(false); }
   dispose() { for (const it of this.items) { it.mesh.dispose(false, true); it.tex.dispose(); } }
@@ -48,6 +48,7 @@ class VrLabels {
 export class VR {
   constructor(app) {
     this.app = app; this.supported = false; this.active = false; this.xr = null; this.busy = false; this.hand = null; this.held = false;   // hand: the left controller the panel rides on
+    this.grip = { left: false, right: false }; this.gripSince = 0;                  // both grips held for a moment = leave VR
     this.lastSpot = null; this.follow = false; this.fadeS = null; this.pending = 0; this.drag = false; this.hoverPtr = null; this._mt = 0;
   }
 
@@ -85,7 +86,7 @@ export class VR {
   dispose() {
     try { if (this.xr) this.xr.dispose(); } catch { /* already gone */ }
     try { if (this.panel) this.panel.dispose(); if (this.labels) this.labels.dispose(); if (this.fade) this.fade.dispose(false, true); } catch { /* scene gone */ }
-    this.xr = this.tele = this.ptr = this.panel = this.labels = this.fade = null; this.active = false; this.fadeS = null; this.hand = null; this.held = false;
+    this.xr = this.tele = this.ptr = this.panel = this.labels = this.fade = null; this.active = false; this.fadeS = null; this.hand = null; this.held = false; this.grip = { left: false, right: false }; this.gripSince = 0;
   }
   onWorldRebuilt() { if (this.supported) this.ready = this.create().catch((e) => console.warn('VR set-up failed', e)); }
   onPlayerRebuilt() { if (this.xr) this.refreshPickable(); }
@@ -126,7 +127,7 @@ export class VR {
   onExit() {
     const a = this.app;
     if (!this.active) return;
-    this.active = false; document.body.classList.remove('invr');
+    this.active = false; document.body.classList.remove('invr'); this.grip = { left: false, right: false }; this.gripSince = 0;
     a.engine.renderEvenInBackground = this._bgRender ?? false;                     // back to pausing when the page is hidden
     if (this.fade) { this.fade.parent = null; this.setFade(0); } this.fadeS = null;
     if (this.panel) this.panel.hide(); if (this.labels) this.labels.hide(0);
@@ -194,6 +195,8 @@ export class VR {
   // ---------------------------------------------------------------- controllers and the panel
   bindController(mc, ctrl) {
     const a = this.app, hand = mc.handedness, comp = (id) => mc.components && mc.components[id];
+    const sq = comp('xr-standard-squeeze');
+    if (sq && (hand === 'left' || hand === 'right')) sq.onButtonStateChangedObservable.add((s) => { this.grip[hand] = !!s.pressed; this.gripSince = this.grip.left && this.grip.right ? performance.now() : 0; });
     const press = (id, fn) => { const c = comp(id); if (!c) return false; c.onButtonStateChangedObservable.add((s) => { if (s.pressed && s.changes.pressed) fn(); }); return true; };
     if (hand === 'right') {
       const hasA = press('a-button', () => a.playPause());                            // A: play / pause
@@ -266,6 +269,7 @@ export class VR {
     if (this.pending > 0 && --this.pending === 0) { this.goSpot('coach', true); this.placePanel(); this.panel.show(); }
     this.labels.head = this.cam.position;
     this.stepFade(dt); this.stepFollow(dt);
+    if (this.gripSince && performance.now() - this.gripSince > 1000) { this.gripSince = 0; this.exit(); return; }   // hold both grips for a second
     if (this.panel.visible) {
       const n = this.handNode();                                                    // follow the left controller every frame (or fall back to the world when it is gone)
       if (n) { this.held = true; this.panel.holdOn(n); } else if (this.held) this.placePanel();
