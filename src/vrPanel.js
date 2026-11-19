@@ -1,7 +1,7 @@
 // The floating VR panel: one plane in the world whose texture is drawn with the 2D canvas API
 // (no extra libraries). Layout and hit-testing come from vrmath.js; vr.js decides what a click does.
 /* global BABYLON */
-import { PANEL_W as W, PANEL_H as H, PANEL_M, TABS, CONTENT, panelLayout, hitTest } from './vrmath.js';
+import { PANEL_W as W, PANEL_H as H, PANEL_M, TABS, CONTENT, HELD_PANEL, heldPanelAxes, panelLayout, hitTest } from './vrmath.js';
 
 const B = () => window.BABYLON;
 const FONT = '"Helvetica Neue", Arial, sans-serif';
@@ -50,7 +50,21 @@ export class VrPanel {
   get visible() { return this.mesh.isEnabled(); }
   show(pose) { if (pose) this.setPose(pose); this.mesh.setEnabled(true); this.dirty = true; }
   hide() { this.mesh.setEnabled(false); this.hover = null; }
-  setPose(p) { this.mesh.position.set(p.x, p.y, p.z); this.mesh.rotation.set(0, p.yaw, 0); }
+  setPose(p) { this.mesh.rotationQuaternion = null; this.mesh.scaling.setAll(1); this.mesh.position.set(p.x, p.y, p.z); this.mesh.rotation.set(0, p.yaw, 0); }
+  /** ride on a controller (call every frame). Not parented on purpose: Babylon disposes a controller's nodes, children included, when it drops off. */
+  holdOn(node) {
+    const BABYLON = B(), m = this.mesh, h = HELD_PANEL;
+    if (!this._held) {
+      const a = heldPanelAxes(), mat = BABYLON.Matrix.FromValues(a.right.x, a.right.y, a.right.z, 0, a.up.x, a.up.y, a.up.z, 0, -a.front.x, -a.front.y, -a.front.z, 0, 0, 0, 0, 1);   // rows: the plane's X, Y, Z in controller space
+      this._held = { q: BABYLON.Quaternion.FromRotationMatrix(mat), off: new BABYLON.Vector3(h.offset.x, h.offset.y, h.offset.z), s: new BABYLON.Vector3(), r: new BABYLON.Quaternion() };
+    }
+    const k = this._held, wm = node.computeWorldMatrix(true);
+    BABYLON.Vector3.TransformCoordinatesToRef(k.off, wm, m.position);
+    wm.decompose(k.s, k.r, undefined);
+    if (!m.rotationQuaternion) m.rotationQuaternion = new BABYLON.Quaternion();
+    k.r.multiplyToRef(k.q, m.rotationQuaternion);                                   // controller rotation first in Babylon's order: parent.multiply(local)
+    m.scaling.setAll(h.w / PANEL_M.w);
+  }
   setTab(k) { this.tab = k; this.dirty = true; }
   /** a pick on the panel -> the button under it (uv from Babylon: v runs bottom to top) */
   hit(uv) { return uv ? hitTest(this.layout, uv.x * W, (1 - uv.y) * H) : null; }

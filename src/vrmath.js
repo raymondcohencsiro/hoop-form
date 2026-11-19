@@ -80,6 +80,14 @@ export const PANEL_W = 1024, PANEL_H = 720;          // canvas pixels (the panel
 export const PANEL_M = { w: 1.2, h: 1.2 * PANEL_H / PANEL_W };
 export const TABS = [['cues', 'Cues'], ['why', 'Why'], ['checks', 'Checks'], ['faults', 'Faults'], ['drill', 'Drill'], ['spots', 'Spots'], ['more', 'More']];
 export const CONTENT = { x: 40, y: 156, w: 944, h: 384 };
+/** The panel when it rides on the left controller. Controller space: +X right, +Y up out of the thumbstick face, +Z forward.
+ *  It floats above the controller with its top edge pointing away from you, tilted back so it faces your eyes. Tune here. */
+export const HELD_PANEL = { w: 0.5, tiltDeg: 40, offset: { x: 0, y: 0.16, z: 0.04 } };
+/** the panel's own right / up / front (the side you read it from) axes, in controller space */
+export function heldPanelAxes(tiltDeg = HELD_PANEL.tiltDeg) {
+  const t = tiltDeg * DEG, s = Math.sin(t), c = Math.cos(t);
+  return { right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: s, z: c }, front: { x: 0, y: c, z: -s } };
+}
 
 /** Where the panel floats: in front of the head, a little below eye level, facing back at the person. */
 export function panelPose(head, yawDeg, dist = 1.3, drop = 0.22) {

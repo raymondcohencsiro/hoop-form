@@ -47,7 +47,7 @@ class VrLabels {
 
 export class VR {
   constructor(app) {
-    this.app = app; this.supported = false; this.active = false; this.xr = null; this.busy = false;
+    this.app = app; this.supported = false; this.active = false; this.xr = null; this.busy = false; this.hand = null; this.held = false;   // hand: the left controller the panel rides on
     this.lastSpot = null; this.follow = false; this.fadeS = null; this.pending = 0; this.drag = false; this.hoverPtr = null; this._mt = 0;
   }
 
@@ -64,6 +64,7 @@ export class VR {
     const xr = await scene.createDefaultXRExperienceAsync({
       disableDefaultUI: true, disableHandTracking: true, disableNearInteraction: true,
       floorMeshes: [a.arena.floor],
+      pointerSelectionOptions: { preferredHandedness: 'right', disableSwitchOnClick: true },   // only the right controller points and clicks; the left one carries the panel
       teleportationOptions: { forceHandedness: 'left', backwardsMovementEnabled: false, defaultTargetMeshOptions: { disableLighting: true } },
     });
     if (scene !== a.scene) { try { xr.dispose(); } catch { /* scene already replaced */ } return; }
@@ -77,13 +78,14 @@ export class VR {
       if (st === BABYLON.WebXRState.IN_XR) this.onEnter(); else if (st === BABYLON.WebXRState.NOT_IN_XR) this.onExit();
     });
     if (this.tele) this.tele.onAfterCameraTeleport.add(() => this.afterAimTeleport());
-    xr.input.onControllerAddedObservable.add((ctrl) => ctrl.onMotionControllerInitObservable.add((mc) => this.bindController(mc)));
+    xr.input.onControllerAddedObservable.add((ctrl) => ctrl.onMotionControllerInitObservable.add((mc) => this.bindController(mc, ctrl)));
+    xr.input.onControllerRemovedObservable.add((ctrl) => { if (this.hand === ctrl) this.hand = null; });   // fires before Babylon disposes the controller's nodes
   }
   /** called before the scene is rebuilt (the XR helper belongs to one scene) and again once the new one exists */
   dispose() {
     try { if (this.xr) this.xr.dispose(); } catch { /* already gone */ }
     try { if (this.panel) this.panel.dispose(); if (this.labels) this.labels.dispose(); if (this.fade) this.fade.dispose(false, true); } catch { /* scene gone */ }
-    this.xr = this.tele = this.ptr = this.panel = this.labels = this.fade = null; this.active = false; this.fadeS = null;
+    this.xr = this.tele = this.ptr = this.panel = this.labels = this.fade = null; this.active = false; this.fadeS = null; this.hand = null; this.held = false;
   }
   onWorldRebuilt() { if (this.supported) this.ready = this.create().catch((e) => console.warn('VR set-up failed', e)); }
   onPlayerRebuilt() { if (this.xr) this.refreshPickable(); }
@@ -112,6 +114,8 @@ export class VR {
   onEnter() {
     const a = this.app, cam = this.xr.baseExperience.camera;
     this.active = true; document.body.classList.add('invr');
+    // the headset browser blurs the page window when the session starts; with renderEvenInBackground off Babylon then skips every XR frame (blank headset)
+    this._bgRender = a.engine.renderEvenInBackground; a.engine.renderEvenInBackground = true;
     if (a.trainer.active) a.setTrainer(false, true);
     if (a.camMode === 'first') a.setCamMode('auto', true);                         // first-person would hide the overlays
     this.setQuality(true);
@@ -123,6 +127,7 @@ export class VR {
     const a = this.app;
     if (!this.active) return;
     this.active = false; document.body.classList.remove('invr');
+    a.engine.renderEvenInBackground = this._bgRender ?? false;                     // back to pausing when the page is hidden
     if (this.fade) { this.fade.parent = null; this.setFade(0); } this.fadeS = null;
     if (this.panel) this.panel.hide(); if (this.labels) this.labels.hide(0);
     this.setQuality(false);
@@ -151,7 +156,13 @@ export class VR {
     q.copyFrom(B().Quaternion.RotationYawPitchRoll(e.y + deg * DEG, e.x, e.z));
     cam.position.x = x; cam.position.z = z;                                        // turn on the spot
   }
-  placePanel() { const p = this.cam.position; this.panel.setPose(panelPose({ x: p.x, y: p.y, z: p.z }, this.headYaw())); }
+  handNode() { const h = this.hand; return (h && (h.grip || h.pointer)) || null; }
+  /** the panel rides on the left controller; with no left controller tracked it floats in front of you instead */
+  placePanel() {
+    const n = this.handNode(); this.held = !!n;
+    if (n) this.panel.holdOn(n);
+    else { const p = this.cam.position; this.panel.setPose(panelPose({ x: p.x, y: p.y, z: p.z }, this.headYaw())); }
+  }
   togglePanel() { if (this.panel.visible) this.panel.hide(); else { this.placePanel(); this.panel.show(); } }
   spotCtx() { const a = this.app, c = a.core; return { focus: c.focus(), rim: c.rim, heading: c.heading, lefty: c.lefty, scale: a.s.player_height / 1.6 }; }
   goSpot(id, instant = false) {
@@ -181,7 +192,7 @@ export class VR {
   }
 
   // ---------------------------------------------------------------- controllers and the panel
-  bindController(mc) {
+  bindController(mc, ctrl) {
     const a = this.app, hand = mc.handedness, comp = (id) => mc.components && mc.components[id];
     const press = (id, fn) => { const c = comp(id); if (!c) return false; c.onButtonStateChangedObservable.add((s) => { if (s.pressed && s.changes.pressed) fn(); }); return true; };
     if (hand === 'right') {
@@ -193,6 +204,7 @@ export class VR {
         if (Math.abs(v.x) >= Math.abs(v.y)) { const d = stickEdge(turn, v.x); if (d) this.turn(d * SNAP_TURN); } else { const s = stickEdge(spd, v.y); if (s) a.changeSpeed(-s); }
       });
     } else if (hand === 'left') {
+      this.hand = ctrl;                                                                // the panel follows this controller
       press('x-button', () => a.stepPrev());                                          // X: previous phase
       if (!press('y-button', () => this.togglePanel())) press('xr-standard-squeeze', () => this.togglePanel());   // Y: show / hide the panel
     }                                                                                 // left stick forward: teleport (Babylon's built-in feature)
@@ -255,6 +267,8 @@ export class VR {
     this.labels.head = this.cam.position;
     this.stepFade(dt); this.stepFollow(dt);
     if (this.panel.visible) {
+      const n = this.handNode();                                                    // follow the left controller every frame (or fall back to the world when it is gone)
+      if (n) { this.held = true; this.panel.holdOn(n); } else if (this.held) this.placePanel();
       const now = performance.now();
       if (this.panel.dirty || now - this._mt > 50) { this._mt = now; this.panel.update(this.model(idx, phase), now); }
     }
