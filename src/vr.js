@@ -4,6 +4,7 @@
 /* global BABYLON */
 import { DEG } from './math.js';
 import { VrPanel } from './vrPanel.js';
+import { VrPointer } from './vrPointer.js';
 import { viewSpot, constrainWalk, panelPose, stickEdge, PANEL_W } from './vrmath.js';
 
 const B = () => window.BABYLON;
@@ -48,6 +49,7 @@ class VrLabels {
 export class VR {
   constructor(app) {
     this.app = app; this.supported = false; this.active = false; this.xr = null; this.busy = false; this.hand = null; this.held = false;   // hand: the left controller the panel rides on
+    this.rightHand = null; this.pressed = false; this._ray = null;               // rightHand: the controller that points at the panel
     this.grip = { left: false, right: false }; this.gripSince = 0;                  // both grips held for a moment = leave VR
     this.lastSpot = null; this.follow = false; this.fadeS = null; this.pending = 0; this.drag = false; this.hoverPtr = null; this._mt = 0;
   }
@@ -71,7 +73,9 @@ export class VR {
     if (scene !== a.scene) { try { xr.dispose(); } catch { /* scene already replaced */ } return; }
     this.xr = xr; this.scene = scene; this.tele = xr.teleportation; this.ptr = xr.pointerSelection;
     this.panel = new VrPanel(scene); this.labels = new VrLabels(scene); this.makeFade(scene);
+    this.pointer = new VrPointer(scene); this._ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 4);
     if (this.ptr) { try { this.ptr.raySelectionPredicate = (m) => m === this.panel.mesh; } catch { /* older build: relies on isPickable below */ } }
+    if (this.ptr) { try { this.ptr.displayLaserPointer = false; this.ptr.displaySelectionMesh = false; } catch { /* keep Babylon's */ } }   // VrPointer draws the beam and ring instead
     this.refreshPickable();
     scene.onNewMeshAddedObservable.add((m) => { m.isPickable = m.name === 'vrpanel' || m === a.arena.floor; });   // only the panel and the floor are ever picked
     scene.onPointerObservable.add((info) => this.onPointer(info));
@@ -80,13 +84,13 @@ export class VR {
     });
     if (this.tele) this.tele.onAfterCameraTeleport.add(() => this.afterAimTeleport());
     xr.input.onControllerAddedObservable.add((ctrl) => ctrl.onMotionControllerInitObservable.add((mc) => this.bindController(mc, ctrl)));
-    xr.input.onControllerRemovedObservable.add((ctrl) => { if (this.hand === ctrl) this.hand = null; });   // fires before Babylon disposes the controller's nodes
+    xr.input.onControllerRemovedObservable.add((ctrl) => { if (this.hand === ctrl) this.hand = null; if (this.rightHand === ctrl) this.rightHand = null; });   // fires before Babylon disposes the controller's nodes
   }
   /** called before the scene is rebuilt (the XR helper belongs to one scene) and again once the new one exists */
   dispose() {
     try { if (this.xr) this.xr.dispose(); } catch { /* already gone */ }
-    try { if (this.panel) this.panel.dispose(); if (this.labels) this.labels.dispose(); if (this.fade) this.fade.dispose(false, true); } catch { /* scene gone */ }
-    this.xr = this.tele = this.ptr = this.panel = this.labels = this.fade = null; this.active = false; this.fadeS = null; this.hand = null; this.held = false; this.grip = { left: false, right: false }; this.gripSince = 0;
+    try { if (this.panel) this.panel.dispose(); if (this.labels) this.labels.dispose(); if (this.pointer) this.pointer.dispose(); if (this.fade) this.fade.dispose(false, true); } catch { /* scene gone */ }
+    this.xr = this.tele = this.ptr = this.panel = this.labels = this.pointer = this.fade = null; this.active = false; this.fadeS = null; this.hand = null; this.rightHand = null; this.held = false; this.grip = { left: false, right: false }; this.gripSince = 0;
   }
   onWorldRebuilt() { if (this.supported) this.ready = this.create().catch((e) => console.warn('VR set-up failed', e)); }
   onPlayerRebuilt() { if (this.xr) this.refreshPickable(); }
@@ -104,6 +108,7 @@ export class VR {
     const a = this.app;
     if (this.busy || this.active) return;
     this.busy = true;
+    a.sfx.unlock();                                                                // this click is the user gesture the browser wants before it allows sound
     try {
       if (a.engine.hoopformBackend === 'WebGPU') { a.flash('VR needs WebGL2: reloading without WebGPU, then tap the VR button again'); location.hash = ''; setTimeout(() => location.reload(), 900); return; }
       await this.ready;
@@ -199,6 +204,7 @@ export class VR {
     if (sq && (hand === 'left' || hand === 'right')) sq.onButtonStateChangedObservable.add((s) => { this.grip[hand] = !!s.pressed; this.gripSince = this.grip.left && this.grip.right ? performance.now() : 0; });
     const press = (id, fn) => { const c = comp(id); if (!c) return false; c.onButtonStateChangedObservable.add((s) => { if (s.pressed && s.changes.pressed) fn(); }); return true; };
     if (hand === 'right') {
+      this.rightHand = ctrl;                                                          // this one points at the panel
       const hasA = press('a-button', () => a.playPause());                            // A: play / pause
       press('b-button', () => a.stepNext());                                          // B: next phase
       if (!hasA) press('xr-standard-squeeze', () => a.playPause());                   // controllers without A / B: grip
@@ -217,10 +223,9 @@ export class VR {
     const T = B().PointerEventTypes, pi = info.pickInfo, pid = info.event && info.event.pointerId;
     const onPanel = !!(pi && pi.hit && pi.pickedMesh === this.panel.mesh), uv = onPanel ? pi.getTextureCoordinates() : null, hit = onPanel ? this.panel.hit(uv) : null;
     if (info.type === T.POINTERMOVE) {
-      if (hit) { this.hoverPtr = pid; this.panel.setHover(hit.id); } else if (pid === this.hoverPtr) this.panel.setHover(null);   // two rays: only the one that set the hover clears it
       if (this.drag && uv) this.scrubAt(uv.x);
-    } else if (info.type === T.POINTERDOWN && hit) this.click(hit, uv);
-    else if (info.type === T.POINTERUP) this.drag = false;
+    } else if (info.type === T.POINTERDOWN) { this.pressed = true; if (hit) this.click(hit, uv); }
+    else if (info.type === T.POINTERUP) { this.pressed = false; this.drag = false; }
   }
   scrubAt(ux) {
     const tl = this.panel.layout.find((r) => r.id === 'timeline'), a = this.app;
@@ -240,7 +245,7 @@ export class VR {
       case 'spot': this.goSpot(v); break;
       case 'follow': this.follow = !this.follow; break;
       case 'skill': if (v !== a.core.skill.key) { a.setSkill(v); again(); } break;
-      case 'tg': { const key = { angles: 'showAngles', line: 'forceLine', trail: 'trailOn' }[v]; a[key] = !a[key]; break; }
+      case 'tg': if (v === 'sound') a.setSound(!a.sfx.on); else { const key = { angles: 'showAngles', line: 'forceLine', trail: 'trailOn' }[v]; a[key] = !a[key]; } break;
       case 'height': a.setPlayerHeight(clamp(Math.round((a.s.player_height + (v === '+' ? 0.05 : -0.05)) * 100) / 100, 1.2, 2.1)); again(); break;
       case 'ball': a.setBallSize(+v); break;
       case 'exit': this.exit(); return;
@@ -250,7 +255,7 @@ export class VR {
   }
   model(idx, phase) {
     const a = this.app, c = a.core, sk = c.display_skill, res = c.checks(phase), okN = res.filter((r) => r.ok).length, T = c.end_time, on = new Set();
-    if (a.showAngles) on.add('tg:angles'); if (a.forceLine) on.add('tg:line'); if (a.trailOn) on.add('tg:trail');
+    if (a.showAngles) on.add('tg:angles'); if (a.forceLine) on.add('tg:line'); if (a.trailOn) on.add('tg:trail'); if (a.sfx.on) on.add('tg:sound');
     on.add(`skill:${c.skill.key}`); on.add(`ball:${a.s.ball_size}`); if (this.lastSpot) on.add(`spot:${this.lastSpot}`); if (this.follow) on.add('follow');
     return { skillKeys: a.skills.order, skillNames: Object.fromEntries(a.skills.skills.map((s) => [s.key, s.name])), skillKey: c.skill.key, shortName: sk.short_name || sk.name,
       title: phase.title, phaseNo: idx + 1, phaseCount: sk.phases.length, badge: res.length ? `${okN}/${res.length} OK` : '', badgeOk: okN === res.length, phase, checks: res,
@@ -273,9 +278,13 @@ export class VR {
     if (this.panel.visible) {
       const n = this.handNode();                                                    // follow the left controller every frame (or fall back to the world when it is gone)
       if (n) { this.held = true; this.panel.holdOn(n); } else if (this.held) this.placePanel();
+      const r = this.rightHand;                                                       // the beam and ring from the right controller; the hover comes from the same pick
+      if (r && r.getWorldPointerRayToRef) { r.getWorldPointerRayToRef(this._ray, false); const h = this.pointer.update(this._ray, this.panel.mesh, this.pressed), b = h && this.panel.hit(h.uv); this.panel.setHover(b ? b.id : null); }
+      else { this.pointer.hide(); this.panel.setHover(null); }
       const now = performance.now();
       if (this.panel.dirty || now - this._mt > 50) { this._mt = now; this.panel.update(this.model(idx, phase), now); }
     }
+    else { this.pointer.hide(); this.pressed = false; }
     if (this._check && --this._check.n === 0) {          // one-off sanity check that moving the XR camera really moved the person
       const p = this.cam.position, err = Math.hypot(p.x - this._check.x, p.z - this._check.z);
       if (err > 0.3 && !this._warned) { this._warned = true; console.warn(`[VR] placement is ${err.toFixed(2)} m off; the XR camera did not take the new position`); }

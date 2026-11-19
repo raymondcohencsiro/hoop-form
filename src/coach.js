@@ -40,7 +40,7 @@ export class CoachCore {
     this.avatar.planted = this.spot.clone();
     this.avatar.applyPose({});
     this.player_eye_height = this.avatar.world('eye').y;
-    this.gait = null; this._dribbleCache = {};
+    this.gait = null; this._dribbleCache = {}; this._sfx = null;
     if (sk.gait) this._buildGait(); else this._planFootwork();
     if (sk.align_phase) {
       const setT = this.timeline.times[sk.phases.findIndex((p) => p.key === sk.align_phase) + 1];
@@ -394,6 +394,28 @@ export class CoachCore {
     return o;
   }
   _dribblePos(t, db, i) { const P = this._dribblePoints(db, i); return this._dribblePath(t, P.db, P); }
+  /**
+   * What the ball sounds like, in skill time: [{ t, kind: 'bounce' | 'swish', pos, gain }] sorted by time.
+   * Dribble bounces, the swish through the net (a clean make), and the floor bounces after the shot (the sim's own rule:
+   * a bounce only when the ball arrives faster than 0.6 m/s). Cached until the player is rebuilt.
+   */
+  soundEvents() {
+    if (this._sfx) return this._sfx;
+    const ev = [], b = this.ball, rt = this.timeline.release_time;
+    (this.skill.dribbles || []).forEach((db, i) => { const P = this._dribblePoints(db, i); ev.push({ t: P.db.floor, kind: 'bounce', pos: P.floor, gain: 0.55 }); });
+    if (rt != null && b.samples.length > 2) {
+      if (b.t_through != null && b.entry_pos && Math.hypot(b.entry_pos.x - this.rim.x, b.entry_pos.z - this.rim.z) < 0.25) ev.push({ t: rt + b.t_through, kind: 'swish', pos: this.rim, gain: 1 });
+      const S = b.samples, R = b.r, DT = b.DT;
+      for (let i = 2; i < S.length; i++) {
+        const y = S[i][0].y, yp = S[i - 1][0].y;
+        if (yp > R + 1e-6 && y <= R + 1e-6) {                                      // touched the floor
+          const vy = (yp - S[i - 2][0].y) / DT;                                    // how fast it came down
+          if (-vy > 0.6) ev.push({ t: rt + i * DT, kind: 'bounce', pos: S[i][0].clone(), gain: Math.max(0.2, Math.min(1, 0.25 + -vy / 9)) });
+        }
+      }
+    }
+    return (this._sfx = ev.sort((a, c) => a.t - c.t));
+  }
   seek(t) {
     this.t = t;
     this._apply(t);

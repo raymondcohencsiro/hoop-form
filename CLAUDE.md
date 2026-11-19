@@ -25,7 +25,9 @@ Useful URL switches: `#webgpu` (WebGPU renderer), `?lite=on|off` (force lite mod
 - `src/render.js`, `src/avatarView.js`, `src/stadium.js`, `src/court.js`, `src/body.js`, `src/net.js`: Babylon.js scene and meshes.
 - `src/coach.js` (`CoachCore`), `avatar.js`, `ball.js`, `gait.js`, `metrics.js`, `animation.js`: **headless** coaching maths.
 - `src/cameras.js`, `src/phone.js`: cameras and touch UI.
-- `src/vr.js`, `src/vrPanel.js`: VR mode (WebXR through Babylon's `createDefaultXRExperienceAsync`). `src/vrmath.js` is the **headless**
+- `src/sfx.js` (Web Audio player) and `src/sfxSynth.js` (**headless** synthesized swish and bounce); `CoachCore.soundEvents()` gives the ball's
+  sound times. Tested in `tests/sfx.test.js`.
+- `src/vr.js`, `src/vrPanel.js`, `src/vrPointer.js`: VR mode (WebXR through Babylon's `createDefaultXRExperienceAsync`). `src/vrmath.js` is the **headless**
   half (spots, walk clamp, panel layout and hit-testing, stick edges) and is tested in `tests/vr.test.js`.
 - `src/math.js`, `geometry.js`, `config.js`: vector kit, geometry helpers, FIBA dimensions and default settings.
 - `assets/skills.json`: all coaching content, phases, key poses and timing. `assets/*.jpg|png`: court and ball textures.

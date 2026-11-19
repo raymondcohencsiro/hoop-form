@@ -123,7 +123,7 @@ You stand in the arena at real size, so the 1.6 m player is a real person next t
 | ⏮ / ⏭ phase | **X** (left) / **B** (right) |
 | Speed | right thumbstick up / down, or the panel |
 | Turn | right thumbstick left / right (45° snap turns) |
-| Coaching sheet, timeline, skill, handedness, toggles | the panel floats above the **left** controller: point the **right** controller at it and pull the trigger. **Y** (left) shows or hides it. **Exit VR** is on every tab (bottom right); squeezing **both grips for a second** leaves VR even when the panel is hidden. With no left controller tracked it floats in front of you instead |
+| Coaching sheet, timeline, skill, handedness, toggles | the panel floats above the **left** controller: point the **right** controller at it and pull the trigger. **Y** (left) shows or hides it. A beam from the right controller ends in a ring where it lands on the panel (the ring shrinks while the trigger is held). **Exit VR** is on every tab (bottom right); squeezing **both grips for a second** leaves VR even when the panel is hidden. With no left controller tracked it floats in front of you instead |
 | Cameras | **Spots** tab: viewpoints around the player (Coach, Side, Front, Behind, Hands, Over shoulder, Wide) |
 | Walk around | **Teleport**: push the left thumbstick forward, aim the arc, let go. Also the court spots in the **Spots** tab: free-throw line, three-point top / wing / corner, under the basket, courtside |
 | Angles, line, trail | **More** tab. Joint angles and the shot readout become 3D labels |
@@ -137,6 +137,8 @@ floor reflection is off and the far upper seats are hidden. Controller models lo
 
 **Settings (⚙)**: player height, rim height, ball size 5/6/7, release angle, shadows, reflections, stands.
 They are remembered in the browser (`localStorage`).
+
+**Sound** (the **Sound** button under ⋯, or **M**): a swish as the ball drops through the net and a bounce for every dribble and floor bounce, placed in 3D around the camera (your head in VR). They are synthesized in code, so there are no audio files. They play only while time runs on by itself, so scrubbing stays quiet, and the browser only starts audio after your first tap, click or key press.
 
 **Lite mode** (Auto / On / Off) drops reflections, the upper-tier seats and shadow resolution. On Auto it switches
 itself on if the frame rate stays under 30 fps. You can force it with `?lite=on` or `?lite=off` in the URL.
@@ -186,6 +188,9 @@ src/cameras.js      camera modes, coaching presets with auto-fit (used by Auto),
 src/phone.js        touch UI: coaching sheet, options sheet, tour, floating joystick, tilt, wake lock
 src/vr.js           VR (WebXR): session, controllers, teleport, 3D labels, quality switches
 src/vrPanel.js      the floating VR coaching panel (a canvas texture on a plane)
+src/vrPointer.js    the right controller's beam and the ring where it lands on the panel
+src/sfx.js          sound effects: Web Audio player, placed in 3D around the camera / your head
+src/sfxSynth.js     headless: the swish and the bounce, synthesized as samples (no audio files)
 src/vrmath.js       headless VR maths: viewpoints and court spots, walk clamp, panel layout and hit-testing, thumbstick edges
 src/coach.js        headless coaching core (port of the Python Coach): timeline, footwork, ball
 src/avatar.js       skeleton, IK (guide hand: damped least squares), arm/torso clearance
@@ -310,6 +315,7 @@ GitHub Actions runs it on every push and pull request (`.github/workflows/test.y
 | `mirroring.test.js` | A left-handed player is an exact mirror of a right-handed one (to 1 mm), and `mirrorText` swaps left and right correctly |
 | `body.test.js` | Over a whole playback: limbs keep their length (IK integrity), feet stay above the floor, nothing is NaN, the ball never teleports; where the player stands; the layup run-in speed profile |
 | `timeline.test.js` | Keyframe timeline passes through every key and never overshoots; mirroring poses is reversible |
+| `sfx.test.js` | sounds: one swish per made shot at the hoop, floor bounces that get quieter, one bounce per dribble; the synthesized sounds are finite, normalised, die away and have the right pitch range |
 | `vr.test.js` | VR maths: every spot is a legal standing point for every skill and hand, viewpoints face the player, the panel layout has no overlapping buttons and every button is reachable, thumbstick edge detection |
 | `net.test.js`, `geometry.test.js`, `math.test.js`, `config.test.js` | The net simulation, mesh generators, vector/matrix maths and FIBA dimensions |
 

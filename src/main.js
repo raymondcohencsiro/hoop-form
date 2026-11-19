@@ -11,6 +11,7 @@ const CAM_HINTS = { auto: 'Auto camera: each phase picks the best view', third: 
   first: "First person: the player's own view - drag to look around", coach: 'Coach view: walk around the court' };
 import { installPhoneUI } from './phone.js';
 import { VR } from './vr.js';
+import { Sfx } from './sfx.js';
 
 const BABYLON = window.BABYLON;
 const $ = (id) => document.getElementById(id);
@@ -52,6 +53,8 @@ class App {
     this.speedI = SPEEDS.indexOf(this.s.playback_speed); if (this.speedI < 0) this.speedI = 2;
     this.autoCam = true; this.camMode = 'auto'; this.fp = { dir: null, yaw: 0, pitch: 0, fov: 72 }; this.showAngles = true; this.forceLine = false; this.trailOn = true; this.gripYaw = 90;
     this.time = 0; this.keys = new Set(); this.freeRect = null;
+    this.sfx = new Sfx(store.get('sound') !== false);                              // swish and bounce; browsers only start audio from a tap, click or key
+    for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, () => this.sfx.unlock(), { passive: true });
     this.buildWorld();
     this.buildHud();
     this.bindInput();
@@ -167,6 +170,7 @@ class App {
   frame() {
     const rawDt = this.engine.getDeltaTime() / 1000, dt = Math.min(rawDt, 0.05), c = this.core;
     this.time += dt;
+    const t0 = c.t, ran = this.playing;
     if (this.playing) {
       let nt = c.t + dt * SPEEDS[this.speedI];
       if (this.mode === 'step' && this.stopAt != null && nt >= this.stopAt) { nt = this.stopAt; this.playing = false; }
@@ -174,6 +178,7 @@ class App {
       if (this.mode === 'step' && nt > c.end_time) { nt = c.end_time; this.playing = false; }
       if (nt !== c.t) c.seek(nt);
     }
+    if (ran && c.t > t0 && c.t - t0 < 0.3) this.sfx.fire(c.soundEvents(), t0, c.t);   // only while time runs on by itself: scrubbing and jumping to a phase stay quiet
     const [idx] = c.timeline.segment(c.t), phase = c.display_skill.phases[idx];
     // cameras
     let pose;
@@ -197,6 +202,7 @@ class App {
       pose = this.camMode === 'first' ? this.firstPersonPose(dt) : this.cam.pose();
     }
     if (!vr) this.placeCamera(pose);
+    { const lc = vr ? this.vr.cam : this.camera; if (lc && this.sfx.ctx) { if (!this._fwd) this._fwd = new BABYLON.Vector3(); lc.getDirectionToRef(BABYLON.Axis.Z, this._fwd); this.sfx.listen(lc.globalPosition, this._fwd); } }   // the sounds are placed around the camera (your head in VR)
     // world
     this.avatarView.sync();
     this.ballView.sync(c.ballPos, c.ballRot);
@@ -450,7 +456,7 @@ class App {
       $('sRim').value = s.rim_height; $('vRim').textContent = `${s.rim_height.toFixed(2)} m`;
       $('sBall').value = String(s.ball_size);
       $('sAngle').value = s.release_angle || 0; $('vAngle').textContent = s.release_angle ? `${s.release_angle}°` : 'auto';
-      $('sShadows').classList.toggle('on', !!s.shadows); $('sCrowd').classList.toggle('on', !!s.crowd); $('sReflect').classList.toggle('on', !!s.reflections);
+      $('sSound').classList.toggle('on', this.sfx.on); $('sShadows').classList.toggle('on', !!s.shadows); $('sCrowd').classList.toggle('on', !!s.crowd); $('sReflect').classList.toggle('on', !!s.reflections);
     };
     sync();
     const live = (id, f) => $(id).addEventListener('input', (e) => { f(e.target.value); sync(); });
@@ -459,6 +465,7 @@ class App {
     live('sRim', (v) => { s.rim_height = +v; }); commit('sRim', () => this.buildWorld());
     live('sAngle', (v) => { s.release_angle = +v >= 35 ? +v : null; }); commit('sAngle', () => this.buildPlayer());
     $('sBall').addEventListener('change', (e) => { s.ball_size = +e.target.value; save(); sync(); this.buildPlayer(); });
+    $('sSound').addEventListener('click', () => this.setSound(!this.sfx.on));
     $('sShadows').addEventListener('click', () => { s.shadows = !s.shadows; save(); sync(); this.buildWorld(); });
     $('sCrowd').addEventListener('click', () => { s.crowd = !s.crowd; save(); sync(); this.buildWorld(); });
     $('sReflect').addEventListener('click', () => { s.reflections = !s.reflections; save(); sync(); this.buildWorld(); });
@@ -515,6 +522,7 @@ class App {
   setBallSize(n) {
     this.s.ball_size = n; store.set('settings', this.s); this.buildPlayer(); $('sBall').value = String(n);
   }
+  setSound(v) { this.sfx.on = !!v; store.set('sound', this.sfx.on); if (v) this.sfx.unlock(); $('sSound').classList.toggle('on', this.sfx.on); this.flash(`Sound ${this.sfx.on ? 'on' : 'off'}`); if (this.vr && this.vr.panel) this.vr.panel.dirty = true; }
   toggleHand() { this.s.handedness = this.s.handedness === 'left' ? 'right' : 'left'; store.set('settings', this.s); this.buildPlayer(); this.flash(`${this.s.handedness === 'left' ? 'Left' : 'Right'}-handed shooter`); }
 
   // speed list that pops up from the speed button (closes on pick, outside tap or Esc)
@@ -699,6 +707,7 @@ class App {
         if (this.camMode === 'first') { this.zoomView(k === 'BracketRight' ? 1.1 : 1 / 1.1); this.flash(`Field of view ${Math.round(this.fp.fov)}°`); break; }
         this.flash(`Field of view ${Math.round(this.cam.fov + this.cam.fov_offset)}°`); break;
       case 'KeyH': this.toggleHand(); break;
+      case 'KeyM': this.setSound(!this.sfx.on); break;
       case 'KeyL': this.forceLine = !this.forceLine; break;
       case 'KeyT': this.trailOn = !this.trailOn; break;
       case 'KeyA': this.showAngles = !this.showAngles; break;

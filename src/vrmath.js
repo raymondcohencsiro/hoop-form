@@ -116,7 +116,7 @@ export function panelLayout(tab, skillKeys = []) {
   } else if (tab === 'more') {
     const n = Math.max(1, skillKeys.length), sw = (CONTENT.w - 12 * (n - 1)) / n;
     skillKeys.forEach((k, i) => add(`skill:${k}`, CONTENT.x + i * (sw + 12), 190, sw, 54, k));
-    ['angles', 'line', 'trail'].forEach((k, i) => add(`tg:${k}`, CONTENT.x + i * ((CONTENT.w - 24) / 3 + 12), 262, (CONTENT.w - 24) / 3, 54, k));
+    ['angles', 'line', 'trail', 'sound'].forEach((k, i) => add(`tg:${k}`, CONTENT.x + i * ((CONTENT.w - 36) / 4 + 12), 262, (CONTENT.w - 36) / 4, 54, k));
     add('height:-', CONTENT.x + 520, 334, 70, 54, '-'); add('height:+', CONTENT.x + 760, 334, 70, 54, '+');
     [5, 6, 7].forEach((n2, i) => add(`ball:${n2}`, CONTENT.x + 520 + i * 142, 406, 130, 54, String(n2)));
   }

@@ -63,7 +63,7 @@ export class VrPanel {
     wm.decompose(k.s, k.r, undefined);
     if (!m.rotationQuaternion) m.rotationQuaternion = new BABYLON.Quaternion();
     k.r.multiplyToRef(k.q, m.rotationQuaternion);                                   // controller rotation first in Babylon's order: parent.multiply(local)
-    m.scaling.setAll(h.w / PANEL_M.w);
+    m.scaling.setAll(h.w / PANEL_M.w); m.computeWorldMatrix(true);                   // the pointer's pick reads this matrix before the next render
   }
   setTab(k) { this.tab = k; this.dirty = true; }
   /** a pick on the panel -> the button under it (uv from Babylon: v runs bottom to top) */
@@ -134,7 +134,7 @@ export class VrPanel {
     let label = r.label;
     if (r.id === 'hand') label = m.hand === 'left' ? 'Left-handed' : 'Right-handed';
     else if (r.id.startsWith('skill:')) label = m.skillNames[r.id.slice(6)] || label;
-    else if (r.id.startsWith('tg:')) label = ({ angles: 'Angles', line: 'Line', trail: 'Trail' })[r.id.slice(3)];
+    else if (r.id.startsWith('tg:')) label = ({ angles: 'Angles', line: 'Line', trail: 'Trail', sound: 'Sound' })[r.id.slice(3)];
     else if (r.id === 'follow') label = `Follow the player: ${m.follow ? 'on' : 'off'}`;
     ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `700 ${r.id.startsWith('tab:') ? 26 : r.w < 90 ? 38 : 28}px ${FONT}`;
