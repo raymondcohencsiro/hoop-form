@@ -319,10 +319,8 @@ GitHub Actions runs it on every push and pull request (`.github/workflows/test.y
 | `vr.test.js` | VR maths: every spot is a legal standing point for every skill and hand, viewpoints face the player, the panel layout has no overlapping buttons and every button is reachable, thumbstick edge detection |
 | `net.test.js`, `geometry.test.js`, `math.test.js`, `config.test.js` | The net simulation, mesh generators, vector/matrix maths and FIBA dimensions |
 
-**Known issue, tracked as `TODO`.** The off-hand ("guide") arm is solved by IK and is not an exact mirror image
-between left- and right-handed players in about 5% of frames (up to roughly 3 cm on the free throw and 10 cm on the layup).
-`mirroring.test.js` keeps a loose bound so it cannot get worse, and a strict test marked `todo` that reports as TODO until
-this is fixed. When it passes, remove the `todo` option.
+The off-hand ("guide") arm is solved by IK whose finite-difference steps are mirrored for a left-handed player, so it too is an exact mirror image
+between left- and right-handed players (within about 0.3 mm); `mirroring.test.js` checks it to 1 mm.
 
 **Not covered.** Rendering (Babylon.js meshes, materials, the HUD, touch input and cameras) is not tested automatically;
 check those by eye (see *Verifying changes* in `CLAUDE.md`).

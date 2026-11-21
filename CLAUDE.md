@@ -89,7 +89,8 @@ cameras or touch input, so for those also check by eye:
   guaranteed in range at the *end* of a phase, so tests sample there.
 - Tests assert documented behaviour (README numbers such as the release elbow angle and run-in speeds). If you deliberately
   change that behaviour, update the README and the test together.
-- `tests/mirroring.test.js` has `todo` tests for a known guide-arm IK asymmetry. Leave them as `todo` until it is fixed, then promote them.
+- `tests/mirroring.test.js` checks that a left-handed player is an exact mirror (1 mm), guide arm included. The guide-arm IK
+  (`Avatar._solveGuide`) steps its y / z angles the other way for a right-side guide arm for that reason; keep any change to it mirror-symmetric.
 - Do not add a test framework or dependencies; the built-in runner is enough.
 
 ## Docs and licenses

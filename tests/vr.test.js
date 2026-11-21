@@ -4,7 +4,7 @@ import { V3 } from '../src/math.js';
 import { sharedCore } from './helpers.js';
 import { STANCHIONS } from '../src/cameras.js';
 import { constrainWalk, allSpots, viewSpot, rawSpot, VIEW_SPOTS, COURT_SPOTS, panelLayout, hitTest, panelPose, stickEdge,
-  TABS, PANEL_W, PANEL_H, WALK_X, WALK_Z, KEEP_OUT, yawTo } from '../src/vrmath.js';
+  TABS, PANEL_W, PANEL_H, WALK_X, WALK_Z, KEEP_OUT, yawTo, PANEL_M, HELD_PANEL, heldPanelAxes } from '../src/vrmath.js';
 
 const ctxFor = (skill, overrides = {}) => {
   const c = sharedCore(skill, overrides);
@@ -111,4 +111,21 @@ test('stickEdge fires once per push and re-arms with hysteresis', () => {
   assert.equal(stickEdge(st, 0.2), 0);
   assert.equal(stickEdge(st, -0.8), -1);
   assert.equal(stickEdge(st, -0.9), 0);
+});
+
+test('held panel: right-handed axes, readable from above and behind the controller, smaller than the world panel', () => {
+  const { right, up, front } = heldPanelAxes(), dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+  const cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
+  for (const v of [right, up, front]) assert.ok(Math.abs(dot(v, v) - 1) < 1e-9, 'unit length');
+  assert.ok(Math.abs(dot(right, up)) < 1e-9 && Math.abs(dot(up, front)) < 1e-9 && Math.abs(dot(right, front)) < 1e-9, 'orthogonal');
+  const z = cross(right, up);                                                      // the plane's own +Z is the side you cannot read it from
+  assert.ok(Math.abs(z.x + front.x) < 1e-9 && Math.abs(z.y + front.y) < 1e-9 && Math.abs(z.z + front.z) < 1e-9, 'front is -Z of a proper rotation');
+  assert.ok(front.y > 0 && front.z < 0, 'faces up and back toward the wearer');
+  assert.ok(up.z > 0, 'its top edge points away from the wearer (the way the controller points)');
+  assert.ok(HELD_PANEL.w < PANEL_M.w && HELD_PANEL.w > 0.2, 'hand-sized');
+});
+
+test('Exit VR is on every tab, and the held panel stays small', () => {
+  for (const [tab] of TABS) assert.ok(panelLayout(tab, ['shooting', 'three', 'layup']).some((r) => r.id === 'exit'), `${tab}: has Exit VR`);
+  assert.ok(HELD_PANEL.w <= 0.4, 'a small panel on the controller');
 });

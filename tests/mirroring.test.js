@@ -11,8 +11,8 @@ const PAIRS = [['shoulder_R', 'shoulder_L'], ['elbow_R', 'elbow_L'], ['wrist_R',
   ['knee_R', 'knee_L'], ['ankle_R', 'ankle_L'], ['toe_R', 'toe_L'], ['heel_R', 'heel_L']];
 const CENTRE = ['pelvis', 'neck', 'eye'];
 
-// The off-hand ("guide") arm is solved by damped-least-squares IK, and its solution is not
-// exactly mirror-symmetric in a few frames (about 5% of the timeline). Everything else is.
+// The off-hand ("guide") arm is solved by damped-least-squares IK. Its finite-difference steps are
+// mirrored for a left-handed player, so that solve is an exact mirror of the right-handed one as well.
 const GUIDE = { right: ['elbow_L', 'wrist_L', 'fingertip_L'], left: ['elbow_R', 'wrist_R', 'fingertip_R'] };
 const mirrorName = (n) => (/_[RL]$/.test(n) ? n.slice(0, -2) + (n.endsWith('_R') ? '_L' : '_R') : n);
 
@@ -40,13 +40,7 @@ for (const key of SKILL_KEYS) {
     assert.ok(strict < 0.001, `worst mirror error ${(strict * 1000).toFixed(2)} mm`);
   });
 
-  test(`${key}: the guide arm stays within 12 cm of a perfect mirror (regression bound)`, () => {
-    const { guide } = mirrorErrors(key);
-    assert.ok(guide < 0.12, `guide arm is ${(guide * 100).toFixed(1)} cm from a perfect mirror`);
-  });
-
-  // Known asymmetry: this reports as TODO until the guide-arm IK is made symmetric, then should be promoted.
-  test(`${key}: the guide arm is an exact mirror (1 mm)`, { todo: 'guide-arm IK is not exactly symmetric in a few frames' }, () => {
+  test(`${key}: the guide arm is an exact mirror (1 mm)`, () => {
     const { guide } = mirrorErrors(key);
     assert.ok(guide < 0.001, `guide arm is ${(guide * 1000).toFixed(1)} mm from a perfect mirror`);
   });

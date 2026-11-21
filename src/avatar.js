@@ -151,7 +151,7 @@ export class Avatar {
       for (let i = 0; i < 4; i++) out.push(0.0005 * (v[i] - q0[i]));
       return out;
     };
-    const dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
+    const dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0), hs = g === 'R' ? -0.5 : 0.5;
     let q = q0.slice(), r = residual(q), lam = 1e-7;
     const nS = samples.length;
     for (let it = 0; it < iters; it++) {
@@ -159,9 +159,11 @@ export class Avatar {
       if (r[0] * r[0] + r[1] * r[1] + r[2] * r[2] < 1.6e-5 && pen <= 0) break;
       const J = [];
       for (let i = 0; i < 4; i++) {
-        const dq = q.slice(); dq[i] += 0.5;
+        // mirrored step: a right-side guide arm (left-handed shooter) has its y / z angles negated
+        // (see mirrorPose), so it steps those the other way and the solve is an exact mirror image
+        const h = i === 1 || i === 2 ? hs : 0.5, dq = q.slice(); dq[i] += h;
         const rd = residual(dq);
-        J.push(rd.map((x, k) => (x - r[k]) / 0.5));       // column i
+        J.push(rd.map((x, k) => (x - r[k]) / h));         // column i
       }
       // Levenberg-Marquardt: if no step improves, raise the damping and retry
       const JTJ = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], g = [0, 0, 0, 0];
